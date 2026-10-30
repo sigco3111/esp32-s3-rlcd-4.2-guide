@@ -1,0 +1,13 @@
+# ESP-IDF 빌드 산출물
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# macOS
+.DS_Store
+
+# 로컬 실측 로그 (민감정보 포함 가능성)
+*.log
+bootlog.txt
