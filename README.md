@@ -10,8 +10,12 @@
 │  ESP32-S3 rev v0.2 · Flash 16MB · PSRAM 8MB Octal         │
 │  네이티브 USB (USB-Serial/JTAG + USB-OTG)                │
 │  I2C: SDA=GPIO13 / SCL=GPIO14 (SHTC3 @ 0x70)            │
+│  출고 펌웨어: 03_Fac (ESP-IDF v5.5.2, factory 8MB)       │
 └─────────────────────────────────────────────────────────┘
 ```
+
+> 📄 위 사양의 근거는 실제 출고 부팅 로그 캡처다:
+> [`docs/logs/factory-bootlog.txt`](docs/logs/factory-bootlog.txt) (MAC 만 마스킹)
 
 **이 저장소가 하는 일**: ESP32-S3 보드를 사서 처음 켜는 사람이, 같은 문제로
 3일씩 고생하지 않도록 **검증된 순서**와 **실제로 부딪힌 함정 18가지**를 그대로
