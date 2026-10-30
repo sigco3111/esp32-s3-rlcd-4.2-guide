@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waveshare ESP32-S3 4.2인치 RLCD 보드 브링업 실전 기록</title>
+<meta name="description" content="ESP32-S3 4.2인치 RLCD 보드를 처음 켜는 과정에서 반드시 부딪히는 함정과 해결법. macOS 개발환경 구축부터 USB 열거 실패 복구, Wi-Fi reason=201 진단까지 실측 로그 기반으로 정리.">
+<meta name="author" content="sigco3111">
+<meta name="date" content="2026-10-30">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1117'/%3E%3Crect x='7' y='9' width='18' height='12' rx='2' fill='none' stroke='%2358a6ff' stroke-width='2'/%3E%3Crect x='10' y='12' width='12' height='6' fill='%233fb950' opacity='.8'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar" aria-hidden="true"></div>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+          <rect x="9.5" y="9.5" width="5" height="5" rx="1"></rect>
+          <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"></path>
+        </svg>
+      </span>
+      <span class="brand-text">RLCD Bring-up Log</span>
+    </div>
+
+    <div class="header-actions">
+      <button class="toc-toggle" id="tocToggle" type="button" aria-expanded="false" aria-controls="tocNav">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <span>목차</span>
+      </button>
+
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="테마 전환" title="다크 / 라이트 테마 전환">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2"></circle>
+          <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 14.5A8.2 8.2 0 019.5 4 8.5 8.5 0 1020 14.5z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap layout">
+
+  <!-- ============ 목차 ============ -->
+  <aside class="sidebar">
+    <nav class="toc" id="tocNav" aria-label="목차">
+      <p class="toc-title">목차</p>
+      <ul class="toc-list">
+        <li><a href="#overview" data-toc="overview">개요</a></li>
+        <li><a href="#spec" data-toc="spec">보드 사양</a></li>
+        <li><a href="#env" data-toc="env">개발환경</a></li>
+        <li class="toc-group">
+          <a href="#progress" data-toc="progress">진행 순서</a>
+          <ul>
+            <li><a href="#step-1" data-toc="step-1">1. 구매 직후 하드웨어 확인</a></li>
+            <li><a href="#step-2" data-toc="step-2">2. macOS 개발환경 구축</a></li>
+            <li><a href="#step-3" data-toc="step-3">3. 출고 펌웨어 백업과 부팅 로그</a></li>
+            <li><a href="#step-4" data-toc="step-4">4. 공식 예제 빌드·플래시</a></li>
+            <li><a href="#step-5" data-toc="step-5">5. Wi-Fi STA 연결 실패 진단</a></li>
+            <li><a href="#step-6" data-toc="step-6">6. 2.4GHz AP가 없는 환경</a></li>
+            <li><a href="#step-7" data-toc="step-7">7. USB 열거 실패 3분류와 복구</a></li>
+            <li><a href="#step-8" data-toc="step-8">8. 전체 정리 + 다음 단계</a></li>
+          </ul>
+        </li>
+        <li><a href="#pitfalls" data-toc="pitfalls">함정 12가지</a></li>
+        <li><a href="#pitfalls-usb" data-toc="pitfalls-usb">추가 함정: USB 복구 편</a></li>
+        <li><a href="#verified" data-toc="verified">실제 검증된 결과</a></li>
+        <li><a href="#security" data-toc="security">보안 관련 메모</a></li>
+        <li><a href="#open-items" data-toc="open-items">확인 필요 항목</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- ============ 본문 ============ -->
+  <article class="post">
+
+    <header class="post-header">
+      <div class="post-badges">
+        <span class="badge badge-success">검증 완료</span>
+        <span class="badge badge-neutral">실측 로그 기반</span>
+        <span class="badge badge-warning">주의</span>
+      </div>
+      <h1 class="post-title">Waveshare ESP32-S3 4.2인치 RLCD 보드 브링업 실전 기록</h1>
+      <p class="post-subtitle">초보자가 반드시 부딪히는 12가지 함정과 해결법</p>
+      <div class="post-meta">
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8" r="3.4"></circle><path d="M4.5 20a7.5 7.5 0 0115 0"></path></svg>
+          sigco3111
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="16" rx="2.5"></rect><path d="M8 3v4M16 3v4M3.5 10h17"></path></svg>
+          2026-10-30
+        </span>
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5v5l3 1.8"></path></svg>
+          읽기 약 12분
+        </span>
+      </div>
+    </header>
+
+    <div class="callout callout-info">
+      <div class="callout-head">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 7.6v.2"></path></svg>
+        이 문서의 원칙
+      </div>
+      <p>
+        기록된 값은 <strong>실측된 값만</strong> 적었습니다. 문서화되지 않은 항목은
+        <code class="inline-code">확인 필요</code> 로 표시했습니다. 공유기 비밀번호, 관리자 비밀번호,
+        Wi-Fi PSK 같은 인증 정보는 어떤 형태로도 기록하지 않았습니다.
+      </p>
+    </div>
+
+    <!-- ---------- 개요 ---------- -->
+    <section id="overview">
+      <h2 class="section-title">개요</h2>
+      <p>
+        Waveshare ESP32-S3 4.2인치 RLCD 보드를 새로 산 뒤, 전원 넣고 화면이 켜지는 것까지
+        약정된 순서를 따랐더니 거의 모든 단계에서 막혔습니다. 이 글은 그 막힌 지점들을
+        <em>왜 막혔는지</em>, <em>어떻게 판별했는지</em>를 중심으로 정리한 브링업 기록입니다.
+      </p>
+      <p>
+        TL;DR로 압축하면 이렇습니다.
+      </p>
+      <ul class="checklist">
+        <li>macOS에서 Python 도구 설치는 <code class="inline-code">pipx</code> 와 <code class="inline-code">brew</code> 를 분리해야 합니다.</li>
+        <li>Wi-Fi <code class="inline-code">reason=201</code> 은 비밀번호 오류가 아니라 <strong>AP를 못 찾았다</strong>는 뜻입니다.</li>
+        <li>USB에서 디바이스가 조용히 사라지면, 먼저 <strong>전원을 완전히 끊었다가 다시 넣으세요</strong>. 대부분 여기서 끝납니다.</li>
+        <li>측정 도구가 대상을 바꿔버리는 경우가 있습니다. <code class="inline-code">esptool read-mem</code> 의 GPIO0 판정 사례가 전형적입니다.</li>
+      </ul>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l7.5 4v5c0 4.4-3.1 8.3-7.5 9.5C7.6 20.3 4.5 16.4 4.5 12V7L12 3z"></path><path d="M9.3 12.2l1.9 1.9 3.6-3.9"></path></svg>
+            잘된 것
+          </div>
+          <ul class="tight">
+            <li>esptool 4종 명령으로 칩/Flash/보안/MAC 확인</li>
+            <li>IDF v5.5.5 로 공식 예제 빌드 및 플래시</li>
+            <li>SHTC3 온습도 실측 로그 확보</li>
+            <li>CDC-ACM 10/10 왕복 통신 검증</li>
+            <li>USB CDC 합성 디바이스 macOS 정상 열거</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9L2.6 17.2a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path><path d="M12 9.5v4M12 16.8v.2"></path></svg>
+            막힌 것
+          </div>
+          <ul class="tight">
+            <li>macOS pip 부재와 PEP 668 차단</li>
+            <li>brew/pipx PATH 우선순위 충돌</li>
+            <li>Wi-Fi reason=201 을 잘못 해석</li>
+            <li>동기 스캔으로 인한 스캔 0개 오판</li>
+            <li>USB 열거 조용한 실패 (DWC2 엔드포인트)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 보드 사양 ---------- -->
+    <section id="spec">
+      <h2 class="section-title">보드 사양</h2>
+      <p>구매 후 esptool로 직접 확인한 값입니다.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">항목</th><th scope="col">값</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>칩</td><td><code class="inline-code">ESP32-S3 rev v0.2</code></td></tr>
+            <tr><td>Flash</td><td>16MB</td></tr>
+            <tr><td>PSRAM</td><td>8MB Octal</td></tr>
+            <tr><td>MAC</td><td><code class="inline-code">28:84:85:xx:xx:xx</code> <span class="muted">(개인 식별정보로 마스킹)</span></td></tr>
+            <tr><td>보안</td><td>Secure Boot 비활성 / Flash Encryption 비활성</td></tr>
+            <tr><td>USB</td><td>네이티브 USB (USB-Serial/JTAG + USB-OTG)</td></tr>
+            <tr><td>전원</td><td>USB-C, PWR 전원 스위치, BOOT(GPIO0) 버튼</td></tr>
+            <tr><td>I2C</td><td>SDA=GPIO13, SCL=GPIO14 (SHTC3 온습도 센서 @ <code class="inline-code">0x70</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-warning">
+        <div class="callout-head">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9L2.6 17.2a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path><path d="M12 9.5v4M12 16.8v.2"></path></svg>
+          주의
+        </div>
+        <p>
+          이 보드는 2.4GHz Wi-Fi 전용입니다. 5GHz 대역 공유기에만 연결되어 있으면 STA 연결은
+          언제나 실패합니다. 대역 불일치는 설정 문제가 아니라 물리적 제약입니다.
+        </p>
+      </div>
+    </section>
+
+    <!-- ---------- 개발환경 ---------- -->
+    <section id="env">
+      <h2 class="section-title">개발환경</h2>
+      <p>검증된 도구 버전입니다. 버전이 다르면 이 글의 명령 출력과 달라질 수 있습니다.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">구분</th><th scope="col">버전 / 값</th><th scope="col">비고</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>ESP-IDF</td><td>v5.5.5</td><td>커밋 <code class="inline-code">b774170f</code></td></tr>
+            <tr><td>Toolchain</td><td>xtensa-esp-elf-gcc 14.2.0</td><td>IDF 번들</td></tr>
+            <tr><td>esptool</td><td>5.6.0 (brew) / 4.12.0 (IDF 내장)</td><td>두 버전이 동시에 존재</td></tr>
+            <tr><td>OS</td><td>macOS 27.2</td><td>Apple Silicon</td></tr>
+            <tr><td>ccache</td><td>활성</td><td>재빌드 14초, 히트율 49.9%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-danger">
+        <div class="callout-head">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5M12 16.2v.2"></path></svg>
+          함정
+        </div>
+        <p>
+          esptool이 brew 버전(5.6.0)과 IDF 내장 버전(4.12.0) 두 개 깔려 있으면
+          <strong>어느 쪽이 실행되는지</strong>에 따라 명령 문법과 출력이 달라집니다.
+          작업 시작 전에 <code class="inline-code">which -a esptool</code> 과
+          <code class="inline-code">esptool version</code> 으로 확정하세요.
+        </p>
+      </div>
+    </section>
+
+    <!-- ---------- 진행 순서 ---------- -->
+    <section id="progress">
+      <h2 class="section-title">진행 순서</h2>
+      <p>아래 8단계 순서대로 진행했습니다. 각 단계의 막힌 지점은 뒤의 함정 목록과 1:1로 대응합니다.</p>
+
+      <!-- Step 1 -->
+      <h3 id="step-1" class="subsection-title">1. 구매 직후 하드웨어 확인</h3>
+      <p>
+        첫 단계는 화면을 켜는 것이 아니라, <strong>무엇이 들어있는지 확인</strong>하는 것입니다.
+        esptool 4종 명령이면 충분합니다.
+      </p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">bash</span></div>
+        <pre><code>esptool --chip esp32s3 chip-id
+esptool --chip esp32s3 flash-id
+esptool --chip esp32s3 get-security-info
+esptool --chip esp32s3 read-mac</code></pre>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">명령</th><th scope="col">알 수 있는 것</th><th scope="col">이 보드에서 확인된 값</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code class="inline-code">chip-id</code></td><td>칩 종류와 리비전</td><td>ESP32-S3 rev v0.2</td></tr>
+            <tr><td><code class="inline-code">flash-id</code></td><td>Flash 제조사와 용량</td><td>16MB</td></tr>
+            <tr><td><code class="inline-code">get-security-info</code></td><td>Secure Boot / Flash Encryption 상태</td><td>둘 다 비활성</td></tr>
+            <tr><td><code class="inline-code">read-mac</code></td><td>공장 출하 MAC</td><td><code class="inline-code">28:84:85:xx:xx:xx</code> (마스킹)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="note">
+        <code class="inline-code">get-security-info</code> 에서 두 항목이 모두 비활성인 것은
+        일반적인 상태입니다. 그럼에도 확인해야 하는 이유는, "이 보드가 지금 flash lock 상태인가"를
+        미리 알아야 이후 백업/복구 전략을 세울 수 있기 때문입니다.
+      </p>
+
+      <!-- Step 2 -->
+      <h3 id="step-2" class="subsection-title">2. macOS 개발환경 구축</h3>
+      <p>
+        이 단계가 전체 작업에서 가장 오래 걸렸습니다. IDF 설치 자체보다
+        <strong>PATH와 Python 관리</strong>에서 문제가 터졌습니다.
+      </p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">bash</span></div>
+        <pre><code># 1) 시스템 python 확인. macOS 기본 python은 Xcode 것이라 pip 바이너리가 없다.
+python3 -V
+python3 -m pip -V          # pip 자체가 없거나 외부 관리 환경이라 차단될 수 있다
+
+# 2) Homebrew python 설치 (pip 은 libexec/bin 에 들어간다)
+brew install python
+
+# 3) 개별 도구는 pipx 로 격리 설치
+brew install pipx
+pipx install esptool
+pipx install pre-commit
+
+# 4) IDF 의 ccache 를 켜고 컴파일
+export IDF_CCACHE_ENABLE=1</code></pre>
+      </div>
+
+      <p>
+        그래도 <code class="inline-code">pip: command not found</code> 가 남으면,
+        Homebrew python의 pip 은 <code class="inline-code">bin/</code> 이 아니라
+        <code class="inline-code">libexec/bin/</code> 에 있다는 사실을 확인하세요.
+      </p>
+
+      <div class="callout callout-warning">
+        <div class="callout-head">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5l3.2 2"></path><circle cx="12" cy="12" r="8.5"></circle></svg>
+          주의
+        </div>
+        <p>
+          IDF의 <code class="inline-code">export.sh</code> 를 그냥 소스하면 셸이 아닌
+          다른 python venv를 찾아버릴 수 있습니다. 설치 시점의 python과 셸의 python이
+          달라진 상황이며, 이때는 venv 경로를 명시하는 wrapper 스크립트를 씁니다.
+        </p>
+      </div>
+
+      <!-- Step 3 -->
+      <h3 id="step-3" class="subsection-title">3. 출고 펌웨어 백업과 부팅 로그 읽기</h3>
+      <p>
+        새 보드에는 출고 펌웨어가 이미 들어있습니다. 덮어쓰기 전에
+        <strong>반드시 전체 영역을 백업</strong>해 두세요. 나중에 "뭘 날렸지"가 되면 복구가 불가능합니다.
+      </p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">bash</span></div>
+        <pre><code># 전체 Flash 덤프 (16MB)
+esptool --chip esp32s3 read_flash 0x0 0x1000000 backup_16mb.bin
+
+# 백업본 해시 확인
+shasum -a 256 backup_16mb.bin</code></pre>
+      </div>
+
+      <p>
+        백업 이후 부팅 로그를 읽습니다. 시리얼 모니터로 붙여서 재부팅하면
+        ROM 부팅 로그(라틴어 0x0B 리셋 사유, 칩/Flash 정보)와 애플리케이션 로그가 이어서 나옵니다.
+        이 로그에서 <code class="inline-code">rst:0x15 (USB_UART_CHIP_RESET)</code> 가 보이면
+        부팅이 아니라 다운로드 모드로 진입한 것이므로, 뒤에서 설명하는 전원 차단 복구가 필요합니다.
+      </p>
+
+      <p class="note">
+        백업 파일 크기와 해시, 그리고 백업에 걸린 시간은 기록해 두세요.
+        복구 시점에는 어떤 백업을 쓸지 판단하는 근거가 됩니다.
+        <span class="muted">(이 문서의 백업 파일 해시값 자체는 확인 필요)</span>
+      </p>
+
+      <!-- Step 4 -->
+      <h3 id="step-4" class="subsection-title">4. 공식 예제 빌드·플래시</h3>
+      <p>
+        워크스페이스에 포함된 공식 예제 두 개를 실제로 빌드해서 플래시했습니다.
+        <code class="inline-code">05_I2C_SHTC3</code> 과 <code class="inline-code">09_LVGL_V9_Test</code> 입니다.
+      </p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">bash</span></div>
+        <pre><code>cd /path/to/05_I2C_SHTC3
+idf.py set-target esp32s3
+idf.py build
+idf.py -p /dev/cu.usbmodem101 flash monitor</code></pre>
+      </div>
+
+      <p>SHTC3 예제에서 온습도가 실제로 들어오는 로그가 관측됐습니다.</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">log</span></div>
+        <pre><code>RH:20.70%, Temp:30.50°C</code></pre>
+      </div>
+
+      <p>
+        이 로그가 나온다는 것의 의미가 큽니다. GPIO13/GPIO14 배선, I2C 주소 <code class="inline-code">0x70</code>,
+        센서 전원까지 모두 정상이라는 뜻입니다. 화면이 안 뜬다고 I2C까지 의심할 필요를 없애줍니다.
+      </p>
+
+      <p>플래시 완료 시 esptool이 검증 결과를 출력합니다.</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">log</span></div>
+        <pre><code>Hash of data verified.
+Hash of data verified.
+Hash of data verified.
+Done</code></pre>
+      </div>
+
+      <p>
+        <code class="inline-code">Hash of data verified</code> 가 3회 나오는 것은
+        app, bootloader, partition 테이블 영역을 각각 검증한 결과이며, 정상 동작입니다.
+      </p>
+
+      <!-- Step 5 -->
+      <h3 id="step-5" class="subsection-title">5. Wi-Fi STA 연결 실패 진단</h3>
+      <p>
+        STA 연결이 반복해서 실패하고 로그에 <code class="inline-code">reason=201</code> 이 떴습니다.
+        처음엔 비밀번호 오류라고 생각했는데, 이 해석이 완전히 틀렸습니다.
+      </p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">log</span></div>
+        <pre><code>wifi:sta: disconnecting from ...
+wifi: sta: reason 201 (NO_AP_FOUND)</code></pre>
+      </div>
+
+      <p>
+        <strong>201은 NO_AP_FOUND</strong>, 즉 "목표 SSID를 스캔 목록에서 못 찾았다"는 의미입니다.
+        비밀번호 오류는 다른 reason 코드로 나옵니다. 이 구분을 모르고 20분 넘게 PSK를
+        만지작거리느라 시간을 버렸습니다.
+      </p>
+
+      <h4 class="minor-title">원인 1: country code 미설정</h4>
+      <p>
+        기본 country code가 <code class="inline-code">US</code> 로 잡히면 12/13채널을 못 쓰는
+        지역 제한이 걸립니다. 로그에서 <code class="inline-code">nchan=13</code> 인 채널이
+        보인다면 그것이 단서입니다.
+      </p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">c</span></div>
+        <pre><code>esp_wifi_set_country_code("KR", false);</code></pre>
+      </div>
+
+      <h4 class="minor-title">원인 2: 스캔과 연결의 충돌</h4>
+      <p>
+        STA 연결 중에 동기 스캔을 끼워 넣으면, 스캔 결과가 0개인 것처럼 보여
+        "공유기가 없다"로 오판하게 됩니다. 스캔은 별도의 FreeRTOS task로 분리해야 합니다.
+      </p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">c</span></div>
+        <pre><code>// 연결 루프와 스캔을 서로 다른 task로 분리
+xTaskCreate(scan_task, "wifi_scan", 4096, NULL, 5, NULL);</code></pre>
+      </div>
+
+      <!-- Step 6 -->
+      <h3 id="step-6" class="subsection-title">6. 2.4GHz AP가 없는 환경, USB CDC-NCM / CDC-ACM 대체 회선</h3>
+      <p>
+        주변에 2.4GHz AP가 없는 환경에서는 STA 회선을 테스트할 수 없습니다.
+        이때 회선을 USB로 대체합니다.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">회선</th><th scope="col">성격</th><th scope="col">적합한 용도</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>USB CDC-ACM</td><td>가상 시리얼. 트랜스포트에 의존하지 않음</td><td>AT 명령, 상태 조회, 제어 채널</td></tr>
+            <tr><td>USB CDC-NCM</td><td>USB 위 이더넷. IP 계층을 그대로 제공</td><td>TCP/UDP 소켓 테스트</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        이 보드 주변에서 관측된 2.4GHz AP 실측 목록은 다음과 같습니다. SSID는 기록해 두었지만
+        <strong>인증 정보(PSK)는 기록하지 않았습니다.</strong>
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">SSID</th><th scope="col">채널</th><th scope="col">비고</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>telecop</td><td>CH1</td><td>2.4GHz AP 존재 확인</td></tr>
+            <tr><td>hidden</td><td>CH7, -36dBm</td><td>hidden SSID, WPA2-PSK</td></tr>
+            <tr><td>A1ASSET</td><td>CH10 / CH11</td><td>2.4GHz AP 존재 확인</td></tr>
+            <tr><td>Galaxy Jump2 4304</td><td>CH6</td><td>2.4GHz AP 존재 확인</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-head">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 7.6v.2"></path></svg>
+          대역 불일치
+        </div>
+        <p>
+          Mac이 붙어 있던 SSID는 <strong>5GHz (Channel 64, 802.11ax)</strong> 였습니다.
+          ESP32-S3는 2.4GHz 전용이므로 그 SSID에는 애초에 붙을 수 없습니다.
+          "왜 안 붙지"를 설명하는 가장 단순한 답이며, 이것을 먼저 확인하면 다른 추론이 불필요해집니다.
+        </p>
+      </div>
+
+      <!-- Step 7 -->
+      <h3 id="step-7" class="subsection-title">7. USB 열거 실패 3분류와 복구</h3>
+      <p>
+        USB는 "된다/안 된다"가 아니라 세 가지로 갈립니다. 분류를 먼저 하면 복구 경로가 정해집니다.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">분류</th><th scope="col">증상</th><th scope="col">복구</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-danger">1. PHY 점유</span></td>
+              <td>기존 JTAG 콘솔이 사라짐 (TinyUSB가 USB PHY를 점유)</td>
+              <td>콘솔을 UART로 전환</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-danger">2. 다운로드 모드 진입</span></td>
+              <td><code class="inline-code">rst:0x15 (USB_UART_CHIP_RESET)</code>, <code class="inline-code">boot:0x3</code> 로 고정</td>
+              <td>전원 완전 차단 후 재투입 (유일한 해법)</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-danger">3. 디스크립터 충돌</span></td>
+              <td>CDC+NCM 동시 활성화로 디바이스가 아예 사라짐</td>
+              <td>하나만 켜기</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        3번 분류의 호스트 로그에서는 단계적으로 실패가 드러납니다. 디바이스 쪽 로그가 0건인 것이
+        핵심 단서입니다.
+      </p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="code-lang">log</span></div>
+        <pre><code>setAddress: result code 4
+createDevice: failed
+# 이후 포트가 영구 비활성</code></pre>
+      </div>
+
+      <p>
+        호스트 로그에 <code class="inline-code">setAddress: result code 4</code> 가 나오면
+        디바이스가 주소를 받지 못한 것입니다. 이때 <code class="inline-code">read-mem</code> 로
+        GPIO0을 확인하려 들면 오히려 상황을 망칩니다(함정 14 참조).
+      </p>
+
+      <!-- Step 8 -->
+      <h3 id="step-8" class="subsection-title">8. 전체 정리 + 다음 단계</h3>
+      <p>
+        전체 흐름을 되돌아보면, 실패의 원인은 크게 두 갈래입니다.
+        <strong>도구 관리 문제</strong>(Python, PATH, 버전)와
+        <strong>하드웨어/드라이버 제약</strong>(대역, USB PHY, 엔드포인트 수)입니다.
+        전자는 문서로 해결이 되고, 후자는 설계 제약이라 시간을 낭비하는 지점입니다.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            다음 단계
+          </div>
+          <ul class="tight">
+            <li>USB CDC-ACM 위에 실제 제어 명령을 얹기</li>
+            <li>STA 회선을 2.4GHz AP가 있는 환경에서 재검증</li>
+            <li>RLCD 패널의 실제 표시 테스트 (확인 필요)</li>
+            <li>LVGL V9 예제 화면 확인 (확인 필요)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19V7M10 19V12M16 19v-6M22 19H2"></path></svg>
+            환경 정리 규칙
+          </div>
+          <ul class="tight">
+            <li>도구 설치 경로는 단일 원칙으로 (brew 또는 pipx)</li>
+            <li>esptool / IDF 버전은 스크립트 시작 시 고정</li>
+            <li>ccache 는 <code class="inline-code">IDF_CCACHE_ENABLE=1</code> 로 항상 켜기</li>
+            <li>IDF 는 wrapper 스크립트로만 로드</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 함정 12 ---------- -->
+    <section id="pitfalls">
+      <h2 class="section-title">함정 12가지</h2>
+      <p>각 항목은 <strong>증상 / 원인 / 처방</strong> 구조입니다.</p>
+
+      <div class="pitfalls">
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">01</span>
+            <h3 class="pitfall-title"><code class="inline-code">pip: command not found</code></h3>
+            <span class="badge badge-danger">함정</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd><code class="inline-code">pip install</code> 을 치면 <code class="inline-code">pip: command not found</code>.</dd>
+            <dt>원인</dt>
+            <dd>macOS 기본 python은 Xcode 소유이고 pip 바이너리가 없습니다. Homebrew python을 설치해도 pip은 <code class="inline-code">bin/</code> 이 아니라 <code class="inline-code">libexec/bin/</code> 에 들어갑니다.</dd>
+            <dt>처방</dt>
+            <dd><code class="inline-code">brew install python</code> 후 <code class="inline-code">python3 -m pip -V</code> 로 경로를 확인합니다. 브라우저에 <code class="inline-code">libexec/bin/pip3</code> 가 보이는데 PATH에 없으면 추가하거나, 가능하면 pipx 경로를 씁니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">02</span>
+            <h3 class="pitfall-title">brew python이 새 버전 끌고 오면 <code class="inline-code">/opt/homebrew/bin/pip3</code> 링크가 뒤집힘</h3>
+            <span class="badge badge-danger">함정</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>어제까지 되던 <code class="inline-code">pip3</code> 가 갑자기 다른 버전의 pip를 가리킵니다.</dd>
+            <dt>원인</dt>
+            <dd>brew가 새 python 버전을 끌어오면서 <code class="inline-code">/opt/homebrew/bin/pip3</code> 심볼릭 링크의 대상이 교체됩니다.</dd>
+            <dt>처방</dt>
+            <dd><code class="inline-code">python3 -V</code> 과 <code class="inline-code">pip3 -V</code> 를 항상 대조합니다. 두 명령이 서로 다른 python을 가리키면 즉시 판단 가능합니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">03</span>
+            <h3 class="pitfall-title"><code class="inline-code">externally-managed-environment</code> (PEP 668)</h3>
+            <span class="badge badge-danger">함정</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd><code class="inline-code">pip install</code> 이 <code class="inline-code">externally-managed-environment</code> 오류로 차단됩니다.</dd>
+            <dt>원인</dt>
+            <dd>PEP 668. 시스템/brew python을 직접 수정하지 못하도록 표준이 바뀝니다.</dd>
+            <dt>처방</dt>
+            <dd><code class="inline-code">pipx install &lt;tool&gt;</code> 을 씁니다. <code class="inline-code">--break-system-packages</code> 는 쓰지 않습니다. OS가 통째로 깨집니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">04</span>
+            <h3 class="pitfall-title">brew와 pipx에 같은 도구가 중복 설치됨</h3>
+            <span class="badge badge-warning">주의</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>어떤 명령이 어떤 버전인지 알 수 없게 됩니다.</dd>
+            <dt>원인</dt>
+            <dd>PATH 우선순위. brew의 <code class="inline-code">/opt/homebrew/bin</code> 와 pipx의 <code class="inline-code">~/.local/bin</code> 순서가 shell마다 다릅니다.</dd>
+            <dt>처방</dt>
+            <dd>한쪽만 유지합니다. <code class="inline-code">which -a &lt;tool&gt;</code> 로 실제 해석 순서를 확인하고, 중복은 제거합니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">05</span>
+            <h3 class="pitfall-title"><code class="inline-code">brew install ninja-build</code> 실패</h3>
+            <span class="badge badge-danger">함정</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd><code class="inline-code">brew install ninja-build</code> 가 "No available formula" 로 실패합니다.</dd>
+            <dt>원인</dt>
+            <dd>formula 이름이 <code class="inline-code">ninja</code> 입니다. <code class="inline-code">ninja-build</code> 는 실제 이름이 아닙니다.</dd>
+            <dt>처방</dt>
+            <dd><code class="inline-code">brew install ninja</code>. brew는 transaction이라 하나의 formula가 틀리면 묶인 설치 전체가 롤백되므로, 한 번에 하나씩 확인하며 진행합니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">06</span>
+            <h3 class="pitfall-title"><code class="inline-code">export.sh</code> 가 다른 python venv를 찾음</h3>
+            <span class="badge badge-danger">함정</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>IDF를 켰는데 <code class="inline-code">idf.py</code> 가 에러를 냅니다. 로그에 예상 못한 venv 경로가 보입니다.</dd>
+            <dt>원인</dt>
+            <dd>설치 시점의 python과 셸에서 sourcing하는 시점의 python이 다릅니다. <code class="inline-code">export.sh</code> 는 그 시점의 활성 python을 따라갑니다.</dd>
+            <dt>처방</dt>
+            <dd>wrapper 스크립트를 만들어 venv 경로를 명시합니다. 예: <code class="inline-code">source ~/esp/esp-idf/export.sh</code> 를 감싼 <code class="inline-code">~/esp/activate-idf.sh</code> 를 만들고, 그 안에서 <code class="inline-code">IDF_PYTHON_ENV_PATH</code> 를 고정합니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">07</span>
+            <h3 class="pitfall-title"><code class="inline-code">idf.py set-target</code> 가 ccache를 끔</h3>
+            <span class="badge badge-warning">주의</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>재빌드 시간이 ccache 적용 전 수준으로 되돌아갑니다.</dd>
+            <dt>원인</dt>
+            <dd><code class="inline-code">set-target</code> 은 툴체인/SDK 설정을 새로 잡는 단계라 ccache 설정이 초기화됩니다.</dd>
+            <dt>처방</dt>
+            <dd><code class="inline-code">export IDF_CCACHE_ENABLE=1</code> 을 IDF 로드 이후, <code class="inline-code">set-target</code> 이전에 다시 설정합니다. 이 환경에서는 재빌드 14초, 히트율 49.9% 로 측정됐습니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">08</span>
+            <h3 class="pitfall-title">Wi-Fi <code class="inline-code">reason=201</code> 을 비밀번호 오류로 오해</h3>
+            <span class="badge badge-danger">함정</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>PSK를 여러 번 고치면서도 연결이 안 됩니다.</dd>
+            <dt>원인</dt>
+            <dd><code class="inline-code">reason=201</code> 은 <strong>NO_AP_FOUND</strong> 입니다. "AP를 못 찾았다"는 뜻이지, "인증이 실패했다"는 뜻이 아닙니다. 스캔 목록에 목표 SSID가 없으면 공유기 문제입니다.</dd>
+            <dt>처방</dt>
+            <dd>연결 시도 전에 스캔으로 목표 SSID가 보이는지 확인합니다. 안 보이면 PSK를 만지작거리지 말고 공유기와 대역을 점검합니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">09</span>
+            <h3 class="pitfall-title">country code 미설정으로 12/13채널 제한</h3>
+            <span class="badge badge-warning">주의</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>13채널 AP가 스캔 목록에 나타나지 않습니다. 로그에 <code class="inline-code">nchan=13</code> 이 보입니다.</dd>
+            <dt>원인</dt>
+            <dd>country code가 기본값(US) 상태라 해당 채널이 제한됩니다.</dd>
+            <dt>처방</dt>
+            <dd><code class="inline-code">esp_wifi_set_country_code("KR", false);</code> 를 STA 시작 전에 호출합니다. 두 번째 인자 <code class="inline-code">false</code> 는 채널 제한 완화를 뜻합니다. 로그에서 <code class="inline-code">nchan=13</code> 으로 실제 적용을 확인하세요.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">10</span>
+            <h3 class="pitfall-title">STA 연결 중 동기 스캔, 스캔 0개 오판</h3>
+            <span class="badge badge-warning">주의</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>연결 루프 중간에 끼워넣은 스캔이 항상 0개를 반환합니다. "주변에 AP가 없다"로 잘못 판단.</dd>
+            <dt>원인</dt>
+            <dd>연결 상태에서 동기 스캔을 호출하면 스캔 결과가 신뢰 불가 상태로 반환됩니다.</dd>
+            <dt>처방</dt>
+            <dd>스캔을 FreeRTOS task로 분리해 별도 스택에서 실행합니다. 또는 STA 연결과 AP 스캔을 서로 다른 단계로 완전히 분리합니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">11</span>
+            <h3 class="pitfall-title">TinyUSB CDC+NCM 동시 활성화로 USB descriptor 충돌</h3>
+            <span class="badge badge-danger">함정</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>디바이스가 <strong>아예 사라집니다</strong>. 드라이버에 잡히지도 않고, 로그도 안 남습니다.</dd>
+            <dt>원인</dt>
+            <dd>USB CDC 와 NCM 을 동시에 활성화하면 디스크립터가 충돌합니다.</dd>
+            <dt>처방</dt>
+            <dd>하나만 켭니다. CDC-ACM 과 CDC-NCM 은 동시 사용이 아니라 <strong>선택</strong>입니다. 필요한 회선 하나만 컴파일 플래그로 남깁니다.</dd>
+          </dl>
+        </article>
+
+        <article class="pitfall">
+          <div class="pitfall-head">
+            <span class="pitfall-num">12</span>
+            <h3 class="pitfall-title">DWC2 <code class="inline-code">ep_in_count=5</code> 하드웨어 인위적 제한</h3>
+            <span class="badge badge-danger">함정</span>
+          </div>
+          <dl class="pitfall-body">
+            <dt>증상</dt>
+            <dd>USB 열거가 "조용히" 실패합니다. 디바이스 쪽 로그가 0건입니다.</dd>
+            <dt>원인</dt>
+            <dd>DWC2 하드웨어의 인위적 제한으로 IN 엔드포인트가 5개로 제한됩니다. TinyUSB 컴포넌트의 <code class="inline-code">ep_in_count</code> 설정이 이를 넘어가면 열거 단계에서 멈춥니다.</dd>
+            <dt>처방</dt>
+            <dd><code class="inline-code">ep_in_count</code> 를 7로 패치합니다. 호스트 로그에서 실패가 순서대로 드러납니다: <code class="inline-code">setAddress: result code 4</code> → <code class="inline-code">createDevice: failed</code> → 포트 영구 비활성.</dd>
+          </dl>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- ---------- 추가 함정 ---------- -->
+    <section id="pitfalls-usb">
+      <h2 class="section-title">추가 함정: USB 복구 편</h2>
+      <p>
+        USB 문제에서 파생된 추가 항목 6가지입니다. 13~18번은 USB 열거 실패를 다루면서
+        함께 발견한 내용입니다.
+      </p>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">13</span>
+          <h3 class="pitfall-title"><code class="inline-code">rst:0x15 (USB_UART_CHIP_RESET)</code> 은 GPIO0 스트랩과 무관</h3>
+          <span class="badge badge-danger">함정</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>BOOT 버튼을 눌러도, 떼도, RTS/DTR 어떤 시퀀스를 쓰든 다운로드 모드(<code class="inline-code">boot:0x3</code>)를 빠져나올 수 없습니다.</dd>
+          <dt>원인</dt>
+          <dd>이 리셋 사유는 GPIO0 스트랩과 무관하게 USB 다운로드 경로를 강제합니다.</dd>
+          <dt>처방</dt>
+          <dd><strong>유일한 해법은 전원 완전 차단 후 재투입</strong>입니다. USB 케이블만 뽑는 것은 전원이 남아 있을 수 있어 부족합니다.</dd>
+        </dl>
+      </article>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">14</span>
+          <h3 class="pitfall-title"><code class="inline-code">read-mem 0x60000004</code> 로 읽은 GPIO0은 항상 0</h3>
+          <span class="badge badge-danger">함정</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd><code class="inline-code">esptool read-mem 0x60000004</code> 로 GPIO0 레지스터를 읽으면 값이 예외 없이 0입니다.</dd>
+          <dt>원인</dt>
+          <dd>esptool이 DTR로 GPIO0을 LOW로 끌어내리기 때문입니다. <strong>측정 도구가 대상을 바꾼 것</strong>입니다. 그래서 0이 나올 수밖에 없습니다.</dd>
+          <dt>처방</dt>
+          <dd>판정 근거는 "디바이스가 계속 다운로드 모드에 머무는 현상" 자체입니다. GPIO0 읽기 값으로 판정하지 않습니다.</dd>
+        </dl>
+      </article>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">15</span>
+          <h3 class="pitfall-title">TinyUSB가 USB PHY를 점유, 기존 JTAG 콘솔 사라짐</h3>
+          <span class="badge badge-warning">주의</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>소스 수정 전에는 JTAG 콘솔로 붙었던 로그가 사라집니다.</dd>
+          <dt>원인</dt>
+          <dd>TinyUSB가 USB PHY를 점유하면서 기존 디버그 콘솔 경로가 밀려납니다.</dd>
+          <dt>처방</dt>
+          <dd>콘솔을 UART로 전환합니다.</dd>
+        </dl>
+      </article>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">16</span>
+          <h3 class="pitfall-title">컴포넌트 매니저가 prerelease 버전을 못 찾음</h3>
+          <span class="badge badge-danger">함정</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>요구 버전이 <code class="inline-code">^2.0.1~1</code> 인 컴포넌트를 컴포넌트 매니저가 찾지 못합니다.</dd>
+          <dt>원인</dt>
+          <dd>레지스트리에 해당 버전이 실제로 존재해도, prerelease 표기(<code class="inline-code">~1</code>)를 해석하지 못해 실패합니다.</dd>
+          <dt>처방</dt>
+          <dd>직접 다운로드해 <code class="inline-code">components/</code> 에 벤더링합니다. <code class="inline-code">esp_tinyusb</code> 와 upstream <code class="inline-code">tinyusb</code> 둘 다 필요합니다.</dd>
+        </dl>
+      </article>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">17</span>
+          <h3 class="pitfall-title">IDF 5.5 lwIP API 변화</h3>
+          <span class="badge badge-warning">주의</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>lwIP를 직접 다루는 코드가 컴파일되지 않습니다.</dd>
+          <dt>원인</dt>
+          <dd>lwIP API 시그니처가 바뀌었습니다.</dd>
+          <dt>처방</dt>
+          <dd>다음처럼 대응합니다.
+            <ul class="tight">
+              <li><code class="inline-code">netif_output_fn(netif, pbuf, ipaddr)</code> : 3인자</li>
+              <li><code class="inline-code">netif-&gt;input</code> 은 <code class="inline-code">(pbuf, netif)</code> 순서</li>
+              <li><code class="inline-code">netif_get_addr</code> 는 없음</li>
+              <li>주소 타입은 <code class="inline-code">ip4_addr_t</code> 사용</li>
+              <li>IP 문자열 길이는 <code class="inline-code">IP4ADDR_STRLEN_MAX</code></li>
+            </ul>
+          </dd>
+        </dl>
+      </article>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">18</span>
+          <h3 class="pitfall-title">lwIP 컴포넌트 이름과 <code class="inline-code">esp_timer.h</code> 의 분리</h3>
+          <span class="badge badge-warning">주의</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>헤더를 못 찾았다거나 컴포넌트를 못 찾는다는 컴파일 에러가 납니다.</dd>
+          <dt>원인</dt>
+          <dd>lwIP 컴포넌트 이름은 <code class="inline-code">esp_lwip</code> 가 아니라 <code class="inline-code">lwip</code> 입니다. 또한 <code class="inline-code">esp_timer.h</code> 는 별도 컴포넌트라 <code class="inline-code">REQUIRES esp_timer</code> 를 명시해야 합니다.</dd>
+          <dt>처방</dt>
+          <dd>CMakeLists 의 <code class="inline-code">REQUIRES</code> 에 <code class="inline-code">lwip</code> 와 <code class="inline-code">esp_timer</code> 를 함께 넣습니다.</dd>
+        </dl>
+      </article>
+    </section>
+
+    <!-- ---------- 검증 결과 ---------- -->
+    <section id="verified">
+      <h2 class="section-title">실제 검증된 결과</h2>
+      <p>아래 항목은 실제로 실행해서 확인한 값만 적었습니다.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">검증 항목</th><th scope="col">결과</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CDC-ACM 통신</td>
+              <td>PING → PONG, 연속 <strong>10/10 왕복 성공</strong>, 송신 <strong>3.0 KB/s</strong></td>
+            </tr>
+            <tr>
+              <td><code class="inline-code">GET /status</code> 응답 형식</td>
+              <td><code class="inline-code">{"uptime":48115,"heap":364924,"temp":0.00,"hum":0.00,"sensor":false}</code></td>
+            </tr>
+            <tr>
+              <td>USB CDC 합성 디바이스 열거 (macOS)</td>
+              <td><code class="inline-code">AppleUSBCDCCompositeDevice</code> + <code class="inline-code">AppleUSBACMControl/Data</code> 로 정상 열거</td>
+            </tr>
+            <tr>
+              <td>SHTC3 실측 (05_I2C_SHTC3 공식 예제)</td>
+              <td><code class="inline-code">RH:20.70%, Temp:30.50°C</code> 계열 실측 로그 존재</td>
+            </tr>
+            <tr>
+              <td>플래시 검증</td>
+              <td><code class="inline-code">Hash of data verified</code> ×3 + <code class="inline-code">Done</code></td>
+            </tr>
+            <tr>
+              <td>2.4GHz AP 실측 목록</td>
+              <td>telecop(CH1), hidden(CH7, -36dBm, WPA2-PSK), A1ASSET(CH10/11), Galaxy Jump2 4304(CH6) 등</td>
+            </tr>
+            <tr>
+              <td>게이트웨이</td>
+              <td>Zyxel USG FLEX 700H, 관리 주소 <code class="inline-code">https://192.168.10.1:50005</code> (사설 IP, 내부망 전용. 인증 정보 없음)</td>
+            </tr>
+            <tr>
+              <td>Mac이 붙어 있던 SSID</td>
+              <td>5GHz (Channel 64, 802.11ax) → ESP32-S3(2.4GHz 전용)와 대역 불일치</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-success">
+        <div class="callout-head">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.4l2.6 2.6L16 9.6"></path></svg>
+          검증 완료
+        </div>
+        <p>
+          CDC-ACM 10/10 왕복, Flash 해시 검증 3회, SHTC3 온습도 실측, macOS 합성 디바이스 열거까지
+          확인된 항목입니다. 반대로 RLCD 패널 실표시와 STA 연결 완주, LVGL V9 화면 출력은
+          이 글 작성 시점 기준 <code class="inline-code">확인 필요</code> 상태입니다.
+        </p>
+      </div>
+    </section>
+
+    <!-- ---------- 보안 ---------- -->
+    <section id="security">
+      <h2 class="section-title">보안 관련 메모</h2>
+      <p>이 글은 공개 저장소에 배포되므로 다음 사항을 명확히 남깁니다.</p>
+
+      <ul class="checklist">
+        <li>공유기 비밀번호, 관리자 비밀번호, Wi-Fi PSK 는 <strong>어떤 형태로도 기록하지 않았습니다.</strong></li>
+        <li>MAC 주소는 <code class="inline-code">28:84:85:xx:xx:xx</code> 로 마스킹했습니다.</li>
+        <li>게이트웨이 관리 주소 <code class="inline-code">https://192.168.10.1:50005</code> 는 사설 IP 대역이라 외부에서 접근할 수 없는 내부망 주소이며, 인증 정보는 포함하지 않았습니다.</li>
+        <li>보드 보안 상태(Secure Boot 비활성 / Flash Encryption 비활성)는 펌웨어 보호가 걸려 있지 않다는 뜻입니다. 운영에 투입하기 전 키 주입과 플래시 암호화를 검토하세요.</li>
+      </ul>
+
+      <div class="callout callout-danger">
+        <div class="callout-head">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4.5" y="10" width="15" height="10" rx="2"></rect><path d="M8 10V7.5a4 4 0 018 0V10"></path></svg>
+          위험
+        </div>
+        <p>
+          이 보드는 Flash Encryption 이 비활성 상태입니다. 개인 데이터나 인증 정보를
+          담은 펌웨어를 올릴 계획이 있다면, 플래시 암호화 활성화 전에 백업 완료 여부를
+          반드시 확인하세요. 암호화 활성화는 기존 백업 이미지의 복구를 막습니다.
+        </p>
+      </div>
+    </section>
+
+    <!-- ---------- 확인 필요 ---------- -->
+    <section id="open-items">
+      <h2 class="section-title">확인 필요 항목</h2>
+      <p>
+        이 글에서 기록하지 않은 정보입니다. 해당 항목을 채우면 문서가 완결됩니다.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">항목</th><th scope="col">상태</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>RLCD 패널 실제 표시 동작</td><td><span class="badge badge-warning">확인 필요</span></td></tr>
+            <tr><td>LVGL V9 예제 화면 출력 결과</td><td><span class="badge badge-warning">확인 필요</span></td></tr>
+            <tr><td>2.4GHz 환경에서의 STA 연결 완주 로그</td><td><span class="badge badge-warning">확인 필요</span></td></tr>
+            <tr><td>출고 펌웨어 백업 파일의 해시값</td><td><span class="badge badge-warning">확인 필요</span></td></tr>
+            <tr><td>Flash 제조사/장치 ID 상세</td><td><span class="badge badge-warning">확인 필요</span></td></tr>
+            <tr><td>백업 파일 크기 및 소요 시간</td><td><span class="badge badge-warning">확인 필요</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="post-footer">
+      <p>
+        작성자 <strong>sigco3111</strong> · 2026-10-30 ·
+        Waveshare ESP32-S3 4.2인치 RLCD 브링업 실전 기록
+      </p>
+      <p class="muted small">
+        본 문서의 모든 수치는 실제 실행 로그에서 확인된 값이며, 확인되지 않은 항목은 "확인 필요" 로 표기했습니다.
+      </p>
+    </footer>
+
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>© 2026 sigco3111 · RLCD Bring-up Log</p>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
