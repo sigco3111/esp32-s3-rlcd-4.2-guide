@@ -98,6 +98,13 @@ wifi:sta:connect failed, status: wifi_connect_fail_reason:201
 ESP-IDF 기본 국가 코드는 `"01"`(world safe mode) → 12/13채널 제한.
 `esp_wifi_set_country_code("KR", false)` 로 고정.
 
+**실측 로그**:
+```
+I (967) wifi:(2.4G)set country: cc=KR schan=1 nchan=13 policy=1
+COUNTRY: KR
+I (1019) wifi:mode : sta (28:84:85:xx:xx:xx)
+```
+
 ### Mac 측 교차검증
 
 ```
@@ -107,6 +114,19 @@ Mac 이 붙어있는 SSID: Channel 64, 802.11ax → 5GHz
 **결론**: Mac 이 5GHz 에 붙어있어서 ESP32-S3(2.4GHz 전용)와 대역 불일치.
 2.4GHz 목록에는 telecop / hidden(CH7, -36dBm) / A1ASSET / Galaxy Jump2 4304 만 있고
 목표 AP 가 없었다.
+
+### STA 연결 실패 로그 (원문)
+
+```
+I (757) app_init: Project name:     03_WIFI_Test
+STA: connect started
+SCAN: 0 AP found — 주변에 2.4GHz 공유기가 없거나 안 잡힘
+disconnected: reason=201 ssid=UBOB
+STA: retry connect
+disconnected: reason=201 ssid=UBOB
+```
+
+`reason=201` = NO_AP_FOUND. 비밀번호 오류(202)가 아니었다.
 
 ### directed probe 통제 실험
 

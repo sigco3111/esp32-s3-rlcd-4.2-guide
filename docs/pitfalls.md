@@ -93,9 +93,13 @@ pipx uninstall esptool     # 또는 brew uninstall esptool
 
 ### 5. `brew install ninja-build` 실패 → 전체 롤백
 
-**증상**
+**증상** (실측 출력 원문)
 ```
-Error: No available formula with the name "ninja-build".
+==> Downloading Homebrew API data
+✔︎ JSON API packages.arm64_golden_gate.jws.json
+Warning: No available formula with the name "ninja-build".
+Error: No formulae or casks found for ninja-build.
+==> Searching for similarly named formulae and casks...
 ```
 cmake, ccache 도 함께 설치되지 않는다.
 
@@ -151,9 +155,14 @@ export IDF_CCACHE_ENABLE=1
 
 ### 8. `reason=201` 을 비밀번호 오류로 오해
 
-**증상**
+**증상** (실측 로그 원문)
 ```
-wifi:sta:connect failed, status: wifi_connect_status: wifi_connect_fail_reason:201
+I (757) app_init: Project name:     03_WIFI_Test
+STA: connect started
+SCAN: 0 AP found — 주변에 2.4GHz 공유기가 없거나 안 잡힘
+disconnected: reason=201 ssid=UBOB
+STA: retry connect
+disconnected: reason=201 ssid=UBOB
 ```
 
 **원인**: **`reason=201` 은 NO_AP_FOUND — 비밀번호 오류가 아니라 AP 를 못 찾은 것이다.**
@@ -186,11 +195,15 @@ wifi:sta:connect failed, status: wifi_connect_status: wifi_connect_fail_reason:2
 ```c
 esp_wifi_set_country_code("KR", false);
 ```
-로그에서 확인:
+
+**실측 로그 원문**
 ```
-wifi:(2.4G)set country: cc=KR schan=1 nchan=13 policy=1
+I (967) wifi:(2.4G)set country: cc=KR schan=1 nchan=13 policy=1
+COUNTRY: KR
+I (1019) wifi:mode : sta (28:84:85:xx:xx:xx)
 ```
 > `nchan` 이 13 인지 확인한다. 11 이면 12/13채널 공유기가 안 잡힌다.
+> `policy=1` 은 국가코드 변경 시 채널 목록을 강제 적용한다는 의미다.
 
 ---
 
@@ -269,6 +282,28 @@ IN 엔드포인트가 5개를 초과하면 `TU_ASSERT` 가 **조용히** 실패�
 ```
 > `.ep_in_count` 를 `.ep_count` 와 같게(7) 고치면 해결된다.
 > 같은 값이 ESP32-S2 / ESP32-H4 / ESP32-P4(FS port)에도 있다 — 해당 칩이면 같이 감사한다.
+
+#### macOS 커널 로그 서명표
+
+디바이스가 왜 안 잡히는지 추적할 때 **이 서명만 grep 하면 된다.**
+```sh
+log show --predicate 'subsystem == "com.apple.iokit.IOAccessoryManager"' --last 5m
+```
+
+| 로그 문자열 | 의미 | 조치 |
+|---|---|---|
+| `Service matched! (serviceName: USB JTAG/serial debug unit)` | **열거 성공** — USB-JTAG 인터페이스 매칭됨 | 정상. 다음 단계로 |
+| `dateRate: 2 [12 Mbps (Full Speed)]` | **FS 협상 성공 / High-Speed 실패** | ESP32-S3 네이티브 USB 는 FS 라 정상 동작. 다만 PHY 문제 신호일 수 있음 |
+| `[Port-USB-C@5: USB2]` / `[Port-USB-C@6: USB2]` | 어느 USB-C 포트에 붙었는지 | 포트를 바꿔 볼 때 식별자로 사용 |
+| `setAddress: completed with result code 4` | **주소 부여 실패** | ← 여기가 진짜 실패 지점 |
+| `createDevice: failed to create device (0xe00002bc)` | 디바이스 생성 실패 | 위와 같은 원인의 후속 |
+| `resetAndCreateDevice: failed to address device, disabling port` | 포트 영구 비활성화 | 복구 불가 상태 → USB 분리/재연결 또는 BOOT 모드 |
+| `disconnect: persistent enumeration failures` | 반복 실패 → 최종 탈락 | **디바이스가 USB 버스에서 사라진 시점** |
+
+> 판독 요령: `Service matched!` 까지 왔는데 `setAddress` 에서 막혔다면
+> **디바이스가 살아있는데 호스트가 주소를 못 주는 상태**다.
+> TinyUSB descriptor 충돌이나 엔드포인트 고갈이 이 지점에서 죽는다.
+> 반대로 `Service matched!` 자체가 없으면 USB PHY 단계에서부터 실패한 것이다.
 
 ---
 
@@ -387,6 +422,24 @@ fatal error: esp_timer.h: No such file or directory
 ```cmake
 REQUIRES lwip esp_timer
 ```
+
+---
+
+## 부가 — 파티션 테이블을 바이너리에서 직접 파싱하지 말 것
+
+**증상**: 엔트리 오프셋/사이즈가 뒤틀려 의미 없는 값이 출력된다.
+레이블이 빈칸이고 크기가 수십 MB 로 나온다.
+
+**원인**: 파티션 엔트리 레이아웃과 MD5 영역 규칙이 버전마다 달라 손으로 맞추기 어렵다.
+
+**처방**: **부팅 로그가 이미 사람이 읽을 형태로 파티션 테이블을 출력한다.**
+```
+I (51) boot: Partition Table:
+I (60) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (67) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (73) boot:  2 factory          factory app      00 00 00010000 00800000
+```
+이걸 그대로 읽으면 된다. (출고 펌웨어는 factory 8MB 앱 + nvs + phy_init 구성.)
 
 ---
 
