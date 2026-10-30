@@ -65,6 +65,7 @@
             <li><a href="#step-4" data-toc="step-4">4. 공식 예제 빌드·플래시</a></li>
             <li><a href="#step-5" data-toc="step-5">5. Wi-Fi STA 연결 실패 진단</a></li>
             <li><a href="#step-6" data-toc="step-6">6. 2.4GHz AP가 없는 환경</a></li>
+            <li><a href="#step-6-1" data-toc="step-6-1">6-1. Self-OTA</a></li>
             <li><a href="#step-7" data-toc="step-7">7. USB 열거 실패 3분류와 복구</a></li>
             <li><a href="#step-8" data-toc="step-8">8. 전체 정리 + 다음 단계</a></li>
           </ul>
@@ -478,6 +479,79 @@ xTaskCreate(scan_task, "wifi_scan", 4096, NULL, 5, NULL);</code></pre>
           Mac이 붙어 있던 SSID는 <strong>5GHz (Channel 64, 802.11ax)</strong> 였습니다.
           ESP32-S3는 2.4GHz 전용이므로 그 SSID에는 애초에 붙을 수 없습니다.
           "왜 안 붙지"를 설명하는 가장 단순한 답이며, 이것을 먼저 확인하면 다른 추론이 불필요해집니다.
+        </p>
+      </div>
+
+      <!-- Step 6-1 : Self-OTA -->
+      <h3 id="step-6-1" class="subsection-title">6-1. Self-OTA — 물리 조작 없이 보드 업그레이드</h3>
+      <p>
+        TinyUSB 앱이 USB PHY를 점유하면 <code>idf -p PORT flash</code>가
+        <code>No serial data received</code>로 실패합니다. 호스트와 보드 사이의 유일한 통로가
+        이미 TinyUSB로 꽉 차 있는 상태라 esptool이 ROM 경로에 닿을 수 없기 때문입니다.
+      </p>
+
+      <div class="callout callout-warning">
+        <div class="callout-head">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3 2.6 20h18.8L12 3Z"></path><path d="M12 10v4M12 17.4v.2"></path></svg>
+          부트스트랩 문제
+        </div>
+        <p>
+          <strong>최초의 CDC 펌웨어부터 Self-OTA를 포함시켜야 합니다.</strong>
+          나중에 추가하려고 하면 이미 갇혀 있습니다 — OTA 명령이 없으면 보드가 스스로 탈출할 수 없고,
+          BOOT 버튼 없이는 새 펌웨어를 넣을 방법이 없어집니다.
+        </p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">명령</th><th scope="col">동작</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>OTA BEGIN &lt;size&gt;</code></td><td><code>ota_0</code> 슬롯에 쓰기 시작</td></tr>
+            <tr><td><code>OTA DATA &lt;hex&gt;</code></td><td>페이로드 이어서 쓰기</td></tr>
+            <tr><td><code>OTA END</code></td><td>검증 후 부팅 파티션 전환 + 재시작</td></tr>
+            <tr><td><code>DLMODE</code></td><td>GPIO0 LOW + RTC 홀드 + 재시작 → ROM 다운로드 모드</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        파티션 테이블에 <code>ota_0</code>/<code>ota_1</code> 슬롯이 있어야 합니다.
+        factory-only 테이블에서는 <code>esp_ota_get_next_update_partition()</code>이 NULL을 줍니다.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">partitions.csv</th><th scope="col">값</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>factory</code></td><td>1M</td></tr>
+            <tr><td><code>ota_0</code></td><td>1M</td></tr>
+            <tr><td><code>ota_1</code></td><td>1M</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        <code>sdkconfig.defaults</code>에 <code>CONFIG_PARTITION_TABLE_CUSTOM=y</code>와
+        <code>CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"</code>를 추가하면 됩니다.
+        이 저장소의 <code>firmware/usb_cdc_acm/</code>에 완성본이 있습니다.
+      </p>
+
+      <div class="callout callout-info">
+        <div class="callout-head">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 7.6v.2"></path></svg>
+          GPIO0 스트랩 유지
+        </div>
+        <p>
+          <code>DLMODE</code>가 ROM 진입에 실패한다면 GPIO0 스트랩이 리셋에서 풀린 것입니다.
+          <code>esp_restart()</code>는 GPIO 스트랩을 보존하지 않고,
+          <code>gpio_hold_en()</code>은 deep-sleep 전용이라 재시작을 못 탑니다.
+          해법은 <strong>RTC GPIO 홀드</strong>입니다 —
+          <code>rtc_gpio_set_direction(GPIO_NUM_0, RTC_GPIO_MODE_OUTPUT_ONLY)</code> →
+          <code>rtc_gpio_set_level(GPIO_NUM_0, 0)</code> → <code>rtc_gpio_hold_en(GPIO_NUM_0)</code>.
         </p>
       </div>
 
