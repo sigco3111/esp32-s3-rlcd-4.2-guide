@@ -1207,6 +1207,31 @@ assert not (defined - called)</code></pre>
         → <strong>1-bit 화면용 UI 는 RGB565A8(16비트) 대신 ALPHA(8비트) 가 맞다.</strong>
         자세한 근거는 <a href="#pitfalls-ui">추가 함정 3가지</a> 절을 보자.
       </p>
+
+      <h3 class="subsection-title">더 큰 펌웨어 — AI 음성 대화 보드</h3>
+      <p>
+        위 예제들은 "기능 하나"를 떼어낸 최소 구현이다.
+        <strong>실제로 매일 쓰는 것</strong>을 만들려면
+        Wi-Fi 없는 환경에서 AI 와 대화하는 보드가 필요하다.
+      </p>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"></path></svg>
+          xiaozhi-rlcd-4.2-cdc
+        </div>
+        <ul class="tight">
+          <li>USB CDC 로 동작하는 AI 음성 대화 보드 (MiniMax ASR/Chat/TTS)</li>
+          <li>400×300 1-bit 전용 테마 + <strong>감정 캐릭터 21종</strong> (AL88)</li>
+          <li>대시보드 <strong>3페이지</strong> — 요약 / 상세 / 시스템 (온도·CPU·메모리)</li>
+          <li>1bpp 폰트로 46KB 절감, 회귀 테스트 5종</li>
+          <li>21개 Phase 에 걸친 <strong>실측 기반 함정 정리</strong></li>
+        </ul>
+        <p class="small" style="margin-top:10px;">
+          <a href="https://github.com/sigco3111/xiaozhi-rlcd-4.2-cdc" target="_blank" rel="noopener">GitHub 저장소</a>
+          ·
+          <a href="https://sigco3111.github.io/xiaozhi-rlcd-4.2-cdc/" target="_blank" rel="noopener">블로그</a>
+        </p>
+      </div>
     </section>
 
     <!-- ---------- 빌드 함정 ---------- -->

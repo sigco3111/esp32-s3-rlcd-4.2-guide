@@ -140,6 +140,7 @@ ALPHA 는 알파만 8비트로 저장해 "흰/검정 + 알파" 구조에 정확�
 
 > 더 큰 펌웨어 (AI 음성 대화 대시보드, XiaoZhi 기반 USB CDC) →
 > [`sigco3111/xiaozhi-rlcd-4.2-cdc`](https://github.com/sigco3111/xiaozhi-rlcd-4.2-cdc)
+> · [블로그](https://sigco3111.github.io/xiaozhi-rlcd-4.2-cdc/)
 
 ---
 

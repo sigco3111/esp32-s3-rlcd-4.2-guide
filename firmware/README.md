@@ -149,7 +149,8 @@ ALPHA 는 **알파만 8비트로** 저장해서
 **AI 음성 대화 대시보드** 펌웨어 (XiaoZhi 기반, USB CDC 로 MiniMax 연동)는
 별도 저장소다:
 
-> `sigco3111/xiaozhi-rlcd-4.2-cdc`
+> [`sigco3111/xiaozhi-rlcd-4.2-cdc`](https://github.com/sigco3111/xiaozhi-rlcd-4.2-cdc)
+> · [블로그](https://sigco3111.github.io/xiaozhi-rlcd-4.2-cdc/)
 
 400×300 1-bit 화면에 캐릭터 + 말풍선 + 3페이지 대시보드
 (요약 / 상세 / 시스템) 를 구현했다.
