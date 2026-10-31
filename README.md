@@ -133,7 +133,7 @@ cd esp32-s3-rlcd-4.2-guide/firmware
 |---|---|
 | `does not fit in configured flash size 2MB` | 기본 flash size 가 2MB. `CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y` 필요 |
 | `is not compatible with target "esp32"` | `idf.py set-target esp32s3` 먼저 |
-| `ESP_ROM_ELF_DIR environment variable is not defined` | `idf` 래퍼가 환경변수를 안 내보냄 |
+| `ESP_ROM_ELF_DIR environment variable is not defined` | `idf` 래퍼가 환경변수를 안 내보냄 | **공식 `. ~/esp/esp-idf/export.sh` 를 쓰면 안 남** |
 
 ### ★ v8 과 v9 를 둘 다 둔 이유
 

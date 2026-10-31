@@ -90,7 +90,21 @@ IDF 의 `tools.json` 이 이 변수를 정의하고,
 ★ **직접 만든 `idf` 래퍼 스크립트가 이걸 빠뜨리기 쉽다.**
 PATH 에 `esp-rom-elfs` 만 넣고 환경변수를 안 내보내면 정확히 이 에러가 난다.
 
-**처방**
+**★ 정답 (권장)**
+
+**ESP-IDF 공식 `export.sh` 를 쓰면 이 에러가 나지 않는다.**
+`export.sh` 가 `idf_tools.py export` 를 통해 이 변수를 설정하기 때문이다.
+
+```bash
+. ~/esp/esp-idf/export.sh     # ← 이 한 줄이면 충분
+idf.py build
+```
+
+★ "매번 source 하기 귀찮다" 는 이유로 wrapper 를 만들면,
+**wrapper 가 `export.sh` 가 내보내는 환경변수를 전부 재현해야 한다.**
+하나만 빠뜨려도 이런 에러가 난다.
+
+**처방 (wrapper 를 쓰는 경우)**
 
 래퍼 스크립트에 추가:
 
@@ -101,6 +115,12 @@ for d in "$IDF_TOOLS"/tools/esp-rom-elfs/*/; do
         break
     fi
 done
+```
+
+★ wrapper 를 만들 때는 `export.sh` 가 내보내는 변수와 대조하는 게 안전하다:
+
+```bash
+grep -oE 'export [A-Z_]+' ~/esp/esp-idf/export.sh | sort -u
 ```
 
 ★ `idf export.sh` 를 매번 치는 게 귀찮아서 wrapper 를 만든 것이라면,

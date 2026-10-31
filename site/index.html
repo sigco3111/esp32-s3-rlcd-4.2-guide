@@ -1263,7 +1263,7 @@ assert not (defined - called)</code></pre>
             <tr>
               <td><code class="inline-code">ESP_ROM_ELF_DIR environment variable is not defined</code></td>
               <td>직접 만든 <code class="inline-code">idf</code> 래퍼가 PATH 만 넣고 환경변수를 안 내보냄</td>
-              <td>래퍼에 <code class="inline-code">export ESP_ROM_ELF_DIR=...</code> 추가</td>
+              <td><strong>공식 <code class="inline-code">. ~/esp/esp-idf/export.sh</code> 를 쓰면 안 남</strong><br>래퍼를 쓴다면 <code class="inline-code">export ESP_ROM_ELF_DIR=...</code> 추가</td>
             </tr>
           </tbody>
         </table>
