@@ -205,8 +205,12 @@ ALPHA 는 알파만 8비트로 저장해 "흰/검정 + 알파" 구조에 정확�
 | 20 | 대시보드 통계가 항상 0 | `#if CONFIG_...` 안의 코드가 **컴파일에서 통째로 삭제**됨 (에러 0건) | CONFIG 무관한 경로로 빼기. `strings *.obj \| grep metrics` 로 컴파일 여부 확인 |
 | 21 | 1-bit 화면에서 글자 뭉개짐 / 말풍선 사라짐 | upstream 16비트 테마·4bpp 폰트가 2색으로 양자화 | 1-bit 전용 테마 + `font_puhui_basic_14_1` (1bpp). 색 대신 구조로 구분 |
 | 22 | 지표 값이 계속 `--` 로 표시 | 필드를 **만들기만 하고 값을 채우는 코드를 안 씀** (컴파일 에러 0건) | 실제 API 로 채움 + "대입 0회" 자동 감지 테스트 |
+| 23 | `does not fit in configured flash size 2MB` | ESP-IDF 기본 flash size 는 **2MB**. 이 보드는 16MB 이고 partitions.csv 는 3.1MB | `CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y` 를 `sdkconfig.defaults` 에 |
+| 24 | `is not compatible with target "esp32"` | `sdkconfig.defaults` 에 target 이 있어도 IDF 는 처음에 esp32 로 잡음 | `idf.py set-target esp32s3` 를 먼저 |
+| 25 | `ESP_ROM_ELF_DIR environment variable is not defined` | 직접 만든 `idf` 래퍼가 PATH 만 넣고 환경변수를 안 내보냄 | 래퍼에 `export ESP_ROM_ELF_DIR=...` 추가 |
 
-> 19–21 상세: [`docs/pitfalls-dashboard.md`](docs/pitfalls-dashboard.md)
+> 19–22 상세: [`docs/pitfalls-dashboard.md`](docs/pitfalls-dashboard.md)
+> 23–25 상세: [`docs/pitfalls-build.md`](docs/pitfalls-build.md)
 
 ---
 
@@ -243,6 +247,7 @@ ALPHA 는 알파만 8비트로 저장해 "흰/검정 + 알파" 구조에 정확�
 | 문서 | 내용 |
 |---|---|
 | [`docs/pitfalls.md`](docs/pitfalls.md) | 함정 18가지 상세 (증상/원인/처방 + 실제 로그) |
+| [`docs/pitfalls-build.md`](docs/pitfalls-build.md) | 함정 23–25 — 빌드 (flash size, target, ESP_ROM_ELF_DIR) |
 | [`docs/usb-communication.md`](docs/usb-communication.md) | USB 통신 2가지 방식과 복구 절차 |
 | [`docs/build-guide.md`](docs/build-guide.md) | macOS 개발환경 구축 완전 가이드 |
 | [`docs/session-log.md`](docs/session-log.md) | 이 프로젝트의 세션별 실전 기록 (원본 로그) |
