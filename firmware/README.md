@@ -102,6 +102,30 @@ idf.py reconfigure        # 컴포넌트 매니저가 의존성을 받아온다
 
 각 예제의 `build/` 에서 `.bin` 이 나온다.
 
+### ★ 클론 직후에 해야 할 일
+
+```bash
+git clone https://github.com/sigco3111/esp32-s3-rlcd-4.2-guide.git
+cd esp32-s3-rlcd-4.2-guide/firmware
+./build-all-examples.sh
+```
+
+★ **`managed_components/` 와 `build/` 는 커밋하지 않는다.**
+저장소가 29MB 인 이유다.
+컴포넌트 매니저가 `idf build` 중에 자동으로 받아온다
+(LVGL 은 예제당 99~201MB).
+
+★ **따라서 첫 빌드는 네트워크가 필요하고 오래 걸린다.**
+8개 예제 전체면 수십 분 걸린다.
+하나만 먼저 확인하고 싶으면:
+
+```bash
+./build-all-examples.sh 13_usb_cdc
+```
+
+★ **`idf.py reconfigure` 는 따로 안 돌려도 된다** —
+`idf build` 가 컴포넌트 해석부터 같이 하기 때문이다.
+
 ---
 
 ## ★ v8 과 v9 를 둘 다 둔 이유

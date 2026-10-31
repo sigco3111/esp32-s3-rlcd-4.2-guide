@@ -116,6 +116,17 @@ CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y  # 기본값은 2MB. 이 보드는 16MB
 ./firmware/build-all-examples.sh
 ```
 
+★ **클론 후 첫 빌드**
+`managed_components/` (LVGL 등) 는 커밋하지 않는다 —
+컴포넌트 매니저가 `idf build` 중에 자동으로 받아온다.
+따라서 **첫 빌드는 네트워크가 필요하고 오래 걸린다.**
+
+```bash
+git clone https://github.com/sigco3111/esp32-s3-rlcd-4.2-guide.git
+cd esp32-s3-rlcd-4.2-guide/firmware
+./firmware/build-all-examples.sh 13_usb_cdc   # 하나만 먼저 확인
+```
+
 ★ **복사하면 세 번 막힌다** — 상세는 [`docs/pitfalls-build.md`](docs/pitfalls-build.md)
 
 | 에러 | 원인 |
