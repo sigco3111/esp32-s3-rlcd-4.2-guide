@@ -72,6 +72,7 @@
         </li>
         <li><a href="#pitfalls" data-toc="pitfalls">함정 12가지 — 환경 구축 · Wi-Fi</a></li>
         <li><a href="#pitfalls-usb" data-toc="pitfalls-usb">추가 함정 6가지 — USB 복구</a></li>
+        <li><a href="#pitfalls-ui" data-toc="pitfalls-ui">추가 함정 3가지 — 화면 · 대시보드</a></li>
         <li><a href="#verified" data-toc="verified">실제 검증된 결과</a></li>
         <li><a href="#security" data-toc="security">보안 관련 메모</a></li>
         <li><a href="#open-items" data-toc="open-items">확인 필요 항목</a></li>
@@ -952,6 +953,125 @@ createDevice: failed
           <dd>lwIP 컴포넌트 이름은 <code class="inline-code">esp_lwip</code> 가 아니라 <code class="inline-code">lwip</code> 입니다. 또한 <code class="inline-code">esp_timer.h</code> 는 별도 컴포넌트라 <code class="inline-code">REQUIRES esp_timer</code> 를 명시해야 합니다.</dd>
           <dt>처방</dt>
           <dd>CMakeLists 의 <code class="inline-code">REQUIRES</code> 에 <code class="inline-code">lwip</code> 와 <code class="inline-code">esp_timer</code> 를 함께 넣습니다.</dd>
+        </dl>
+      </article>
+    </section>
+
+    <!-- ---------- 함정 19-21: 화면 · 대시보드 ---------- -->
+    <section id="pitfalls-ui">
+      <h2 class="section-title">추가 함정 3가지 — 화면 · 대시보드 계층</h2>
+      <p>
+        앞의 함정들은 <strong>보드를 켜는 법</strong> 이었다.
+        19–21 은 <strong>화면에 뭔가를 띄우는 법</strong> 이다.
+        셋 다 <strong>컴파일 에러를 내지 않는다.</strong> 조용히 죽는 게 함정이다.
+        <a href="https://github.com/sigco3111/esp32-s3-rlcd-4.2-guide/blob/main/docs/pitfalls-dashboard.md"
+           target="_blank" rel="noopener" class="inline-code">docs/pitfalls-dashboard.md</a>
+      </p>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">19</span>
+          <h3 class="pitfall-title">정의만 있고 호출이 없는 함수는 "화면이 안 바뀐다"가 된다</h3>
+          <span class="badge badge-warning">주의</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>대시보드에 3페이지(요약/상세/시스템)를 만들었다. 버튼을 눌러도 <strong>아무것도 바뀌지 않는다.</strong> 내부 변수 값만 바뀌고 화면은 그대로입니다.</dd>
+          <dt>원인</dt>
+          <dd>
+            <code class="inline-code">Create()</code> 에서 <code class="inline-code">BuildDetailPage()</code> /
+            <code class="inline-code">BuildSystemPage()</code> <strong>호출이 빠져 있었습니다.</strong>
+            그래서 루트 포인터가 <code class="inline-code">nullptr</code> 이고,
+            visibility 함수가 첫 줄에서 조기 반환합니다.
+            <pre class="code-block"><code>detail_root_ == nullptr
+  → ApplyPageVisibility() 첫 줄에서 return
+    → 아무것도 안 바꾸고 끝
+      → 화면은 P1 에서 P1</code></pre>
+            <strong>null 가드가 "안전장치" 처럼 보이지만 실제로는 기능 전체를 죽였습니다.</strong>
+            뒤에서 모든 위젯을 이미 null 체크 하고 있어서 앞의 조기 반환은 불필요했습니다.
+          </dd>
+          <dt>처방</dt>
+          <dd>
+            호출을 추가하고 조기 반환을 제거합니다.
+            <strong>눈으로 확인하는 방법</strong> — 화면에 나올 문자가 바이너리에 있는가:
+            <pre class="code-block"><code>nm build/xiaozhi.elf | grep -c BuildDetailPage   # → 0 이면 호출 없음
+strings build/xiaozhi.elf | grep -cE "LATENCY DIST|CUMULATIVE"</code></pre>
+            ★ 재발 방지 — 정의된 함수와 호출된 함수를 자동 대조하는 테스트를 둡니다.
+          </dd>
+        </dl>
+      </article>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">20</span>
+          <h3 class="pitfall-title"><code class="inline-code">#if CONFIG_...</code> 로 감싼 코드는 컴파일 에러 없이 사라진다</h3>
+          <span class="badge badge-warning">주의</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>PC 브리지가 통계 JSON 을 USB CDC 로 보내는데 보드 화면의 값이 <strong>항상 0</strong> 입니다. 감정도 계속 "neutral" 이고 턴수도 늘지 않습니다.</dd>
+          <dt>원인</dt>
+          <dd>
+            처리부가 <code class="inline-code">#if CONFIG_RECEIVE_CUSTOM_MESSAGE</code> 안에 있었습니다.
+            이 프로젝트는 <strong>Wi-Fi/MQTT 없이 USB CDC 만</strong> 쓰므로 그 옵션이 꺼져 있고,
+            <strong>코드 전체가 컴파일 단계에서 삭제</strong>됐습니다. 에러 0건, 경고 0건.
+            <pre class="code-block"><code>$ strings application.cc.obj | grep -xE "metrics"
+(출력 없음 = 통째로 제외됨)</code></pre>
+            ★ 게다가 이 경로는 <strong>4중으로 막혀 있었습니다.</strong>
+            <ol>
+              <li>metrics 블록이 <code class="inline-code">#if</code> 안 → 컴파일 제외</li>
+              <li>메서드가 파생클래스에만 있어 <code class="inline-code">Display*</code> 로 호출 자체가 불가</li>
+              <li>화면을 감싸는 래퍼 클래스가 위임하지 않음</li>
+              <li>프로토콜이 metrics 를 별도 처리하지 않음</li>
+            </ol>
+            ★ <strong>첫 번째 막힘이 나머지 세 개를 숨겼습니다.</strong>
+            2번은 컴파일 에러가 났어야 하는데, 그 코드가 1번 때문에 애초에 컴파일 대상이 아니었죠.
+          </dd>
+          <dt>처방</dt>
+          <dd>
+            ① CONFIG 와 무관한 경로로 빼고, ② 메서드를 베이스 클래스로 승격시키고,
+            ③ 래퍼가 내부로 위임하게 합니다.
+            <strong>일반 원칙</strong> — <code class="inline-code">#if CONFIG_*</code> 로 감싼 코드는
+            "기능이 켜져 있을 때만 존재" 하는 코드입니다.
+            그 설정이 꺼진 빌드에서 필요하다면 감싸지 말고 다른 경로로 빼야 합니다.
+          </dd>
+        </dl>
+      </article>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">21</span>
+          <h3 class="pitfall-title">1-bit 화면에 upstream 테마·폰트를 그대로 쓰면 뭉개진다</h3>
+          <span class="badge badge-warning">주의</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>400×300 1-bit 반사형 화면에 대시보드를 올렸다. 화면은 나오는데 <strong>글자가 뭉개지고 말풍선이 배경에 묻힙니다.</strong></dd>
+          <dt>원인</dt>
+          <dd>
+            1-bit 에는 회색이 없고 <strong>흰/검정 2색뿐</strong>입니다.
+            upstream 의 16비트 색상 설계가 전부 깨집니다.
+            <ul>
+              <li>light 테마: 배경 <code class="inline-code">FFFFFF</code> + 말풍선 <code class="inline-code">DDDDDD</code> → <strong>둘 다 흰색</strong>으로 양자화</li>
+              <li>dark 테마: 배경 <code class="inline-code">000000</code> + 말풍선 <code class="inline-code">222222</code> → <strong>둘 다 검정</strong>으로 양자화</li>
+              <li>반투명(<code class="inline-code">bg_opa 70%</code>), <code class="inline-code">radius 8</code>, <code class="inline-code">border 0</code> → 1-bit 에서 전부 노이즈</li>
+              <li>4bpp 폰트의 안티앨리어싱 회색 → 흰/검정으로 양자화되며 글자 뭉개짐</li>
+            </ul>
+          </dd>
+          <dt>처방</dt>
+          <dd>
+            <strong>① 1-bit 전용 테마</strong> — 색 대신 구조로 구분:
+            assistant 말풍선은 흰 배경 + 검정 테두리, user 말풍선은 역색(검정 배경 + 흰 글자).
+            반투명·radius·테두리를 제거합니다.
+            <br><strong>② 1bpp 폰트</strong>
+            <pre class="code-block"><code>set(BUILTIN_TEXT_FONT font_puhui_basic_14_1)   # 218KB (4bpp 는 511KB)
+set(BUILTIN_ICON_FONT font_awesome_14_1)      #  39KB (4bpp 는 119KB)</code></pre>
+            바이너리 <strong>46KB 절감</strong> + 가독성 확보.
+            <br>★ <strong>1-bit 에서 화면을 좋게 만드는 수단은 색이 아니라 구조다</strong> —
+            역색, 2px 이상 굵은 선, 개방형 프레임, 도형(호/도넛), 여백, 애니메이션.
+            특히 <strong>세그먼트 막대(칸 단위 채움)</strong>는 1-bit 에서 강력합니다.
+            "몇 칸이 채워졌는지" 가 색 대비보다 정확한 정보를 줍니다.
+          </dd>
         </dl>
       </article>
     </section>
