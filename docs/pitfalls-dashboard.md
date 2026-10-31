@@ -346,3 +346,110 @@ file(GLOB BOARD_SOURCES CONFIGURE_DEPENDS
 
 ★ **보드 폴더에 `CMakeLists.txt` 를 만들지 말 것.** 무시된다.
 보드 소스 통합은 `main/CMakeLists.txt` 의 GLOB 가 전부 담당한다.
+
+---
+
+## 22. "선언만 있고 채워지지 않는 필드"는 화면에 안 뜬다
+
+**증상**
+
+대시보드에 지표를 하나 추가했다. 구조체에 필드를 만들고,
+그 값을 읽는 UI 코드를 작성했다.
+
+```cpp
+struct DashboardMetrics {
+    uint32_t free_heap = 0;
+    uint32_t min_heap = 0;
+    uint32_t heap_total = 0;      // ★ 추가
+    float cpu_temp = 0.0f;         // ★ 추가
+    uint32_t task_stack_free = 0;  // ★ 추가
+};
+```
+
+화면에는 `--` 가 계속 표시된다. 값이 0 이거나, 센서가 안 잡히거나.
+
+**원인**
+
+필드를 **만들기만 하고 값을 채우는 코드를 안 썼다.**
+
+```cpp
+void RlcdDashboard::Update() {
+    metrics_.free_heap = esp_get_free_heap_size();
+    metrics_.min_heap  = esp_get_minimum_free_heap_size();
+    // ★ metrics_.heap_total = ...       ← 없음
+    // ★ metrics_.cpu_temp = ...          ← 없음
+    // ★ metrics_.task_stack_free = ...   ← 없음
+}
+```
+
+★ **컴파일 에러가 안 난다.** 필드가 struct 에 있으니 참조는 된다.
+0 이 화면에 나온다. "센서를 못 읽은 것" 으로 오해하기 쉽다.
+
+★ 이 프로젝트에서 **이 패턴으로 5개 필드가** 죽어 있었다:
+`cpu_temp` / `battery` / `charging` / `heap_total` / `task_stack_free`
+
+★ 특히 `cpu_temp` 는 **선언 → UI 가드 → 0 으로 고정** 이 3단기가 이미
+완성돼 있어서, "계산만 빠진" 것처럼 보이지만 **아무도 계산 안 했다** 는 게
+눈에 안 보였다.
+
+**처방 ① — 값을 실제로 채움**
+
+```cpp
+// rlcd_sys_metrics.cc
+out->task_stack_used = (uint32_t)uxTaskGetStackHighWaterMark(nullptr);
+```
+
+★ `nullptr` 을 넘기면 "현재 실행 중인 태스크" 의 값을 준다.
+여기서는 대시보드 갱신이 main 태스크에서 도는 거라 main 태스크의 스택이다.
+
+**처방 ② — 없는 값은 없는 값으로 표시**
+
+```cpp
+// 이 보드에는 배터리가 없다. USB-C 전원만 쓰는 데스크 디스플레이다.
+battery_label_ = lv_label_create(header_);
+lv_label_set_text(battery_label_, "--");   // 0 이 아니라 "--"
+```
+
+★ **"값이 있는 척 표시하면 사용자를 오도한다."**
+없는 값을 0 으로 보여주는 건 차라리 정직하지만, 이 경우엔 `--` 가 더 정확하다.
+
+★ 해당 필드는 아예 struct 에서 **제거**했다.
+쓰지도 않을 필드를 들고 있으면 나중에 "왜 0 이지?" 하고 또 헤맨다.
+
+**처방 ③ — ★ 자동 감지 (이 패턴의 재발 방지)**
+
+```python
+# DashboardMetrics 의 모든 필드를 추출해서
+# "대입이 있는가" 를 자동 검사
+clean = re.sub(r'//[^\n]*', '', struct_body)
+fields = []
+for line in clean.split('\n'):
+    line = line.strip()
+    fm = re.match(r'([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*(=|;)', line)
+    if fm:
+        fields.append(fm.group(2))
+
+dead = []
+for f in fields:
+    if not re.search(rf'metrics_\.{f}\b\s*=', cc_src):
+        if f == 'cpu_load':          # 배열은 인덱스 대입
+            if not re.search(r'metrics_\.cpu_load\[', cc_src):
+                dead.append(f)
+        else:
+            dead.append(f)
+
+assert not dead, f"대입 0회: {dead}"
+```
+
+→ 테스트에 넣어두면 **새 필드를 추가하고 대입을 빠뜨리는 순간 테스트가 실패한다.**
+
+★ 같은 방식으로 "정의만 있고 호출 없는 함수" 도 검사할 수 있다:
+
+```python
+defined = set(re.findall(r'void RlcdDashboard::(Build\w+)\(\)', src))
+called  = set(re.findall(r'\b(Build\w+)\(\);', src))
+assert not (defined - called)
+```
+
+★ **두 가지 다 "컴파일 에러가 안 나는" 종류의 버그** 다.
+눈으로 못 잡는다. 테스트로 잡아야 한다.

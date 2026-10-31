@@ -1074,6 +1074,53 @@ set(BUILTIN_ICON_FONT font_awesome_14_1)      #  39KB (4bpp 는 119KB)</code></p
           </dd>
         </dl>
       </article>
+
+      <article class="pitfall">
+        <div class="pitfall-head">
+          <span class="pitfall-num">22</span>
+          <h3 class="pitfall-title">"선언만 있고 채워지지 않는 필드"는 화면에 안 뜬다</h3>
+          <span class="badge badge-warning">주의</span>
+        </div>
+        <dl class="pitfall-body">
+          <dt>증상</dt>
+          <dd>지표 필드를 추가하고 UI 코드를 작성했는데, 화면 값이 계속 <code class="inline-code">--</code> 입니다. 센서를 못 읽은 것 같아서 한참 헤맸습니다.</dd>
+          <dt>원인</dt>
+          <dd>
+            필드를 <strong>만들기만 하고 값을 채우는 코드를 안 썼습니다.</strong>
+            <pre class="code-block"><code>metrics_.free_heap = esp_get_free_heap_size();
+metrics_.min_heap  = esp_get_minimum_free_heap_size();
+// ★ metrics_.cpu_temp = ...        ← 없음
+// ★ metrics_.heap_total = ...      ← 없음
+// ★ metrics_.task_stack_free = ... ← 없음</code></pre>
+            ★ <strong>컴파일 에러가 안 납니다.</strong> 필드가 struct 에 있으니 참조는 되니까요.
+            0 이 화면에 나옵니다. "센서를 못 읽은 것" 으로 오해하기 쉽습니다.
+            <br>★ 이 프로젝트에서 이 패턴으로 <strong>5개 필드</strong>가 죽어 있었습니다.
+            특히 <code class="inline-code">cpu_temp</code> 는 "선언 → UI 가드 → 0 고정" 3단기가
+            이미 완성돼 있어서, <strong>계산만 빠진 게 아니라 아무도 계산 안 했다</strong> 는 게
+            눈에 안 보였습니다.
+          </dd>
+          <dt>처방</dt>
+          <dd>
+            <strong>① 값을 실제로 채움</strong>
+            <pre class="code-block"><code>out->task_stack_used = (uint32_t)uxTaskGetStackHighWaterMark(nullptr);
+// nullptr = 현재 실행 중인 태스크</code></pre>
+            <strong>② 없는 값은 없는 값으로 표시</strong> —
+            이 보드에는 배터리가 없는데 <code class="inline-code">0</code> 이 아니라
+            <code class="inline-code">--</code> 로 표시하고, 쓰지도 않을 필드는 struct 에서 제거합니다.
+            <br><strong>③ ★ 자동 감지</strong> — 같은 패턴을 두 번 당했으므로 테스트로 막습니다.
+            <pre class="code-block"><code>dead = [f for f in fields
+        if not re.search(rf'metrics_\.{f}\b\s*=', cc_src)]
+assert not dead, f"대입 0회: {dead}"</code></pre>
+            새 필드를 추가하고 대입을 빠뜨리는 순간 테스트가 실패합니다.
+            <br>★ 같은 방식으로 <strong>"정의만 있고 호출 없는 함수"</strong> 도 검사할 수 있습니다.
+            <pre class="code-block"><code>defined = set(re.findall(r'void RlcdDashboard::(Build\w+)\(\)', src))
+called  = set(re.findall(r'\b(Build\w+)\(\);', src))
+assert not (defined - called)</code></pre>
+            ★ 둘 다 <strong>"컴파일 에러가 나지 않는" 종류의 버그</strong> 입니다.
+            눈으로 못 잡습니다. <strong>테스트로 잡아야 합니다.</strong>
+          </dd>
+        </dl>
+      </article>
     </section>
 
     <!-- ---------- 검증 결과 ---------- -->

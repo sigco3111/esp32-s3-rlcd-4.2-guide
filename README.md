@@ -18,7 +18,7 @@
 > [`docs/logs/factory-bootlog.txt`](docs/logs/factory-bootlog.txt) (MAC 만 마스킹)
 
 **이 저장소가 하는 일**: ESP32-S3 보드를 사서 처음 켜는 사람이, 같은 문제로
-3일씩 고생하지 않도록 **검증된 순서**와 **실제로 부딪힌 함정 21가지**를 그대로
+3일씩 고생하지 않도록 **검증된 순서**와 **실제로 부딪힌 함정 22가지**를 그대로
 공개한다. 모든 해결법은 이 보드에서 실측 검증된 것만 담았다.
 
 ---
@@ -140,6 +140,7 @@ print(s.read(100).decode().strip())
 | 19 | 페이지 전환을 해도 화면이 안 바뀜 | `Build*()` **호출 누락** → 루트가 `nullptr` → visibility 함수가 조기 반환 | `Create()` 에 호출 추가. `nm`/`strings` 로 "화면에 낼 문자열이 바이너리에 있는가" 로 확인 |
 | 20 | 대시보드 통계가 항상 0 | `#if CONFIG_...` 안의 코드가 **컴파일에서 통째로 삭제**됨 (에러 0건) | CONFIG 무관한 경로로 빼기. `strings *.obj \| grep metrics` 로 컴파일 여부 확인 |
 | 21 | 1-bit 화면에서 글자 뭉개짐 / 말풍선 사라짐 | upstream 16비트 테마·4bpp 폰트가 2색으로 양자화 | 1-bit 전용 테마 + `font_puhui_basic_14_1` (1bpp). 색 대신 구조로 구분 |
+| 22 | 지표 값이 계속 `--` 로 표시 | 필드를 **만들기만 하고 값을 채우는 코드를 안 씀** (컴파일 에러 0건) | 실제 API 로 채움 + "대입 0회" 자동 감지 테스트 |
 
 > 19–21 상세: [`docs/pitfalls-dashboard.md`](docs/pitfalls-dashboard.md)
 
