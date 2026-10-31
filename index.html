@@ -1180,8 +1180,10 @@ assert not (defined - called)</code></pre>
           <ul class="tight">
             <li><code class="inline-code">./firmware/build-all-examples.sh</code></li>
             <li>예제 하나만: <code class="inline-code">./firmware/build-all-examples.sh 13_usb_cdc</code></li>
-            <li><code class="inline-code">managed_components/</code> 는 매니저가 받아오므로 커밋하지 않는다</li>
+            <li><code class="inline-code">managed_components/</code> 는 <code class="inline-code">idf build</code> 중 매니저가 자동으로 받는다 (LVGL 은 예제당 99~201MB)</li>
             <li>결과 <code class="inline-code">.bin</code> 은 각 예제의 <code class="inline-code">build/</code> 에</li>
+            <li>★ <strong>클론 후 첫 빌드는 네트워크가 필요하고 오래 걸린다</strong> (LVGL 컴파일 포함)</li>
+            <li>★ <code class="inline-code">idf.py reconfigure</code> 는 따로 안 돌려도 된다</li>
           </ul>
         </div>
       </div>
