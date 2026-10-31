@@ -1,0 +1,10 @@
+# Name,   Type, SubType, Offset,   Size, Flags
+# factory 앱 + 2개 OTA 슬롯.
+# 자기 업데이트(Self-OTA)로 USB 로 받은 펌웨어를 ota_0 에 쓰고 부팅 파티션을
+# 전환할 수 있게 한다. physical OTA 없이 호스트에서 보드를 직접 업그레이드.
+nvs,      data, nvs,     ,        0x4000,
+otadata,  data, ota,     ,        0x2000,
+phy_init, data, phy,     ,        0x1000,
+factory,  app,  factory, ,        1M,
+ota_0,    app,  ota_0,   ,        1M,
+ota_1,    app,  ota_1,   ,        1M,

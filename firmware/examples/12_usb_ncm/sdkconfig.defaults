@@ -1,0 +1,24 @@
+CONFIG_TINYUSB_NET_MODE_NCM=y
+# CDC 를 끈다. CDC 와 NCM 을 동시에 켜면 USB descriptor 가 충돌해
+# 디바이스가 열거되지 않는다(포트 자체가 사라짐).
+CONFIG_TINYUSB_CDC_ENABLED=n
+CONFIG_TINYUSB_CDC_COUNT=0
+CONFIG_TINYUSB_MSC_ENABLED=n
+CONFIG_TINYUSB_HID_ENABLED=n
+CONFIG_TINYUSB_MIDI_ENABLED=n
+CONFIG_TINYUSB_DFU_ENABLED=n
+CONFIG_TINYUSB_NCM_OUT_NTB_BUFFS_COUNT=4
+CONFIG_TINYUSB_NCM_IN_NTB_BUFFS_COUNT=4
+CONFIG_TINYUSB_MODE_DMA=y
+
+# TinyUSB(USB-OTG)를 쓰면 네이티브 USB Serial/JTAG 는 물리적으로 비활성화된다
+# (둘이 USB PHY 를 공유). 따라서 콘솔은 UART 로 돌린다.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+CONFIG_FREERTOS_HZ=1000
+
+# ★ 16MB 플래시 (이 보드는 16MB다)
+#   원본 예제의 sdkconfig 에는 2MB 로 남아 있어 partitions.csv(3.1MB) 와
+#   충돌해 "does not fit in configured flash size 2MB" 로 빌드가 막혔다.
+#   sdkconfig 는 생성물이라 커밋하지 않으므로 defaults 에 명시해야 한다.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y

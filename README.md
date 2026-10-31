@@ -74,9 +74,72 @@ print(s.read(100).decode().strip())
 | `site/` | **블로그** — GitHub Pages 배포 대상. `index.html` + `assets/` |
 | `firmware/usb_cdc_acm/` | USB CDC-ACM 통신 펌웨어 (센서 + Self-OTA 포함) |
 | `firmware/usb_cdc_ncm/` | USB CDC-NCM 이더넷 NIC 펌웨어 |
+| `firmware/examples/` | **★ 최소 예제 8종** — 기능 하나씩 배워가는 순서 |
+| `firmware/build-all-examples.sh` | 예제 8종 한 번에 빌드 (재현 검증 포함) |
 | `docs/` | 상세 문서 (통신 프로토콜, 함정 상세, 빌드 가이드) |
-| `docs/pitfalls-dashboard.md` | 함정 19–21 — 화면/대시보드 계층 (페이지 전환, 컴파일 제외, 1-bit 정합성) |
+| `docs/pitfalls-dashboard.md` | 함정 19–22 — 화면/대시보드 계층 (페이지 전환, 컴파일 제외, 1-bit 정합성) |
+| `docs/pitfalls-build.md` | 함정 23–25 — 빌드 (flash size, target, ESP_ROM_ELF_DIR) |
 | `scripts/` | 재현 스크립트 (플래시, 통신 테스트, 부팅 로그 수집) |
+
+---
+
+## 💾 펌웨어 모음 — 예제 8종
+
+이 보드에서 **기능 하나만** 딱 떼어낸 최소 구현이다.
+"이거 어디서 시작해야 하지"에 대한 답이 여기 있다.
+
+| 예제 | 하는 일 | 순서 |
+|---|---|---|
+| [`01_wifi_ap`](firmware/examples/01_wifi_ap/) | SoftAP 로 Wi-Fi 대역 제약 우회 | 1 |
+| [`05_i2c_shtc3`](firmware/examples/05_i2c_shtc3/) | I2C 온습도 센서 (SHTC3 @ 0x70) | 2 |
+| [`08_lvgl_v8_test`](firmware/examples/08_lvgl_v8_test/) | LVGL v8 화면 | 3 |
+| [`11_u8g2_test`](firmware/examples/11_u8g2_test/) | U8G2 로 1-bit 직접 제어 | 4 |
+| [`13_usb_cdc`](firmware/examples/13_usb_cdc/) | USB CDC 직렬 + Self-OTA | 5 |
+| [`03_adc_test`](firmware/examples/03_adc_test/) | ADC 로 전압 읽기 | 6 |
+| [`12_usb_ncm`](firmware/examples/12_usb_ncm/) | USB 를 이더넷 NIC 로 | 7 |
+| [`09_lvgl_v9_test`](firmware/examples/09_lvgl_v9_test/) | LVGL v9 화면 (v8 비교용) | 8 |
+
+### ★ 복사할 때 세 번은 만나는 설정
+
+```bash
+idf.py set-target esp32s3          # 안 하면 target "esp32" 로 잡혀 막힌다
+```
+
+```
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y  # 기본값은 2MB. 이 보드는 16MB
+```
+
+`sdkconfig` 는 커밋하지 않으므로 `sdkconfig.defaults` 에 명시해야 재현된다.
+
+전 예제 한 번에:
+```bash
+./firmware/build-all-examples.sh
+```
+
+★ **복사하면 세 번 막힌다** — 상세는 [`docs/pitfalls-build.md`](docs/pitfalls-build.md)
+
+| 에러 | 원인 |
+|---|---|
+| `does not fit in configured flash size 2MB` | 기본 flash size 가 2MB. `CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y` 필요 |
+| `is not compatible with target "esp32"` | `idf.py set-target esp32s3` 먼저 |
+| `ESP_ROM_ELF_DIR environment variable is not defined` | `idf` 래퍼가 환경변수를 안 내보냄 |
+
+### ★ v8 과 v9 를 둘 다 둔 이유
+
+| | LVGL v8 | LVGL v9 |
+|---|---|---|
+| 이미지 포맷 | **ALPHA** (8.4MB) | RGB565A8 (2.1MB) |
+| 1-bit 화면 적합성 | ★ 높음 | 낮음 |
+
+이 보드는 **1-bit 반사형 모노크롬**이다.
+16비트 RGB 를 밀어넣으면 회색이 생기고 1-bit 로 양자화하며 뭉개진다.
+ALPHA 는 알파만 8비트로 저장해 "흰/검정 + 알파" 구조에 정확히 맞는다.
+→ **1-bit 화면용 UI 는 ALPHA(8비트) 가 맞다.**
+
+자세한 근거: [`docs/pitfalls-dashboard.md`](docs/pitfalls-dashboard.md)
+
+> 더 큰 펌웨어 (AI 음성 대화 대시보드, XiaoZhi 기반 USB CDC) →
+> [`sigco3111/xiaozhi-rlcd-4.2-cdc`](https://github.com/sigco3111/xiaozhi-rlcd-4.2-cdc)
 
 ---
 
