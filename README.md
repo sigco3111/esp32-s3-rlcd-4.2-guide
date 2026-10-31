@@ -18,7 +18,7 @@
 > [`docs/logs/factory-bootlog.txt`](docs/logs/factory-bootlog.txt) (MAC 만 마스킹)
 
 **이 저장소가 하는 일**: ESP32-S3 보드를 사서 처음 켜는 사람이, 같은 문제로
-3일씩 고생하지 않도록 **검증된 순서**와 **실제로 부딪힌 함정 18가지**를 그대로
+3일씩 고생하지 않도록 **검증된 순서**와 **실제로 부딪힌 함정 21가지**를 그대로
 공개한다. 모든 해결법은 이 보드에서 실측 검증된 것만 담았다.
 
 ---
@@ -75,6 +75,7 @@ print(s.read(100).decode().strip())
 | `firmware/usb_cdc_acm/` | USB CDC-ACM 통신 펌웨어 (센서 + Self-OTA 포함) |
 | `firmware/usb_cdc_ncm/` | USB CDC-NCM 이더넷 NIC 펌웨어 |
 | `docs/` | 상세 문서 (통신 프로토콜, 함정 상세, 빌드 가이드) |
+| `docs/pitfalls-dashboard.md` | 함정 19–21 — 화면/대시보드 계층 (페이지 전환, 컴파일 제외, 1-bit 정합성) |
 | `scripts/` | 재현 스크립트 (플래시, 통신 테스트, 부팅 로그 수집) |
 
 ---
@@ -136,6 +137,11 @@ print(s.read(100).decode().strip())
 | 16 | 컴포넌트 매니저가 prerelease 못 찾음 | `^2.0.1~1` 해석 실패 (레지스트리에 있는데도) | 직접 다운로드해 `components/`에 벤더링 (`esp_tinyusb` + upstream `tinyusb` **둘 다**) |
 | 17 | lwIP API 미스매치 | IDF 5.5 의 lwIP API 변경 | `netif_output_fn(netif, pbuf, ipaddr)` 3인자 / `netif->input` 은 `(pbuf, netif)` / `netif_get_addr` 없음 / `ip4_addr_t` / `IP4ADDR_STRLEN_MAX` |
 | 18 | `Failed to resolve component 'esp_lwip'` | 컴포넌트명이 `esp_lwip` 가 아니라 **`lwip`** | `REQUIRES lwip`. `esp_timer.h` 는 별도 `REQUIRES esp_timer` 필요 |
+| 19 | 페이지 전환을 해도 화면이 안 바뀜 | `Build*()` **호출 누락** → 루트가 `nullptr` → visibility 함수가 조기 반환 | `Create()` 에 호출 추가. `nm`/`strings` 로 "화면에 낼 문자열이 바이너리에 있는가" 로 확인 |
+| 20 | 대시보드 통계가 항상 0 | `#if CONFIG_...` 안의 코드가 **컴파일에서 통째로 삭제**됨 (에러 0건) | CONFIG 무관한 경로로 빼기. `strings *.obj \| grep metrics` 로 컴파일 여부 확인 |
+| 21 | 1-bit 화면에서 글자 뭉개짐 / 말풍선 사라짐 | upstream 16비트 테마·4bpp 폰트가 2색으로 양자화 | 1-bit 전용 테마 + `font_puhui_basic_14_1` (1bpp). 색 대신 구조로 구분 |
+
+> 19–21 상세: [`docs/pitfalls-dashboard.md`](docs/pitfalls-dashboard.md)
 
 ---
 

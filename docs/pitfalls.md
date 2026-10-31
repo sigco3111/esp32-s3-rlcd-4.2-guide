@@ -4,6 +4,10 @@
 > 에러 메시지는 그대로 옮겼고, 없는 로그를 지어내지 않았다.
 >
 > 원문 부팅 로그: [`logs/factory-bootlog.txt`](logs/factory-bootlog.txt)
+>
+> 📌 **함정 19–21 (화면/대시보드 계층)** 은 별도 문서에 있다 →
+> [`pitfalls-dashboard.md`](pitfalls-dashboard.md)
+> (페이지 전환이 안 되는 이유, `#if` 로 코드가 사라지는 이유, 1-bit 화면 정합성)
 
 ---
 
